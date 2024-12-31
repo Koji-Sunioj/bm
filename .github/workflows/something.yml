@@ -1,0 +1,19 @@
+name: sup
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  what:
+    runs-on: ubuntu-latest
+
+  steps:
+    - uses: actions/checkout@v3
+    - name: show dir
+      run: ls -A
+    - name: echo something
+      run: echo "hello wassup"      
+
+

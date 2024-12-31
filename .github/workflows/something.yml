@@ -8,12 +8,11 @@ on:
 jobs:
   what:
     runs-on: ubuntu-latest
-
-  steps:
-    - uses: actions/checkout@v3
-    - name: show dir
-      run: ls -A
-    - name: echo something
-      run: echo "hello wassup"      
+    steps:
+      - uses: actions/checkout@v3
+      - name: show dir
+        run: ls -A
+      - name: echo something
+        run: echo "hello wassup"      
 
 

@@ -14,16 +14,3 @@ jobs:
       - name: echo something
         run: echo "hello wassup"      
 
-
-name: asdasd
-
-on:
-  worklow_dispatch:
-
-jobs:
-  second:
-    runs-on: ubuntu-latest
-    steps:
-      - name: echo dispatch
-        run: echo "$(date)"  
-

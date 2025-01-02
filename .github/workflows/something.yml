@@ -16,7 +16,8 @@ jobs:
         run: ls -A
       - name: echo something
         run: echo "hello wassup"
-      - name: check variables
-        run: |
-          echo ${{ toJson(github.event) }}   
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
 

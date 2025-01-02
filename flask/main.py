@@ -3,7 +3,7 @@ import psycopg2.extras
 from passlib.context import CryptContext
 from flask import Flask, render_template, request, redirect, flash, session
 
-# hello you
+# hello you 2
 
 conn = psycopg2.connect(database="blackmetal",
                         host="localhost",

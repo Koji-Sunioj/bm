@@ -9,10 +9,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: show dir
-        run: ls -A
-      - working-directory: flask
+      - name: show conf
+        run: cat api.conf
+      - name: check flask
+        working-directory: flask
         run: ls -A
       - name: echo something
-        run: echo "hello wassup"      
+        run: echo "hello wassup"
+      - name: check variables
+        run: |
+          echo ${{ github.event }}   
 

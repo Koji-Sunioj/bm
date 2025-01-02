@@ -1,0 +1,21 @@
+name: sup3
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - nginx/**
+jobs:
+  what:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: check conf
+        working-directory: nginx
+        run: cat api.conf
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
+

@@ -18,5 +18,5 @@ jobs:
         run: echo "hello wassup"
       - name: check variables
         run: |
-          echo ${{ github.event }}   
+          echo ${{ toJson(github.event) }}   
 

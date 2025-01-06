@@ -1,4 +1,4 @@
 backend/__pycache__
 backend/.env
 backend/.venv
-frontend/common
+frontend/common/

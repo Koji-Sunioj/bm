@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Black Metal | Welcome</title>
+    <script src="/assets/app.js"></script>
+    <link href="/assets/old-english-five.css" rel="stylesheet" />
+    <link href="/assets/app.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width" />
+  </head>
+  <body onload="renderAuthForm()">
+    <div id="nav">
+      <a href="/">Homepage</a>
+      <a href="/albums/">Albums</a>
+      <a href="/my-account/" id="account-link">My Account</a>
+    </div>
+    <hr />
+    <h1></h1>
+    <form id="form_id" onsubmit="auth(event)" autocomplete="off">
+      <div class="form-field">
+        <label for="username">username:</label>
+        <input
+          type="text"
+          name="username"
+          required
+          minlength="5"
+          maxlength="20"
+        />
+      </div>
+      <div class="form-field">
+        <label for="password">password:</label>
+        <input
+          type="password"
+          name="password"
+          required
+          minlength="10"
+          maxlength="20"
+        />
+      </div>
+      <button type="submit">submit</button>
+    </form>
+  </body>
+</html>

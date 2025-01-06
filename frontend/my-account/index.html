@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Black Metal | My Account</title>
+    <script src="/assets/app.js"></script>
+    <link href="/assets/old-english-five.css" rel="stylesheet" />
+    <link href="/assets/app.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width" />
+  </head>
+  <body onload="renderUser();">
+    <div id="nav">
+      <a href="/">Homepage</a>
+      <a href="/albums/">Albums</a>
+      <a href="/my-account/" id="account-link">My Account</a>
+    </div>
+    <hr />
+    <h1>Here are your details</h1>
+    <div id="details"></div>
+    <a href="/" id="log-out" onclick="logOut(event)">Log out</a>
+  </body>
+</html>

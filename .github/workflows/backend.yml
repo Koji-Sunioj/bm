@@ -5,14 +5,14 @@ on:
     branches:
       - main
     paths:
-      - flask/**
+      - backend/**
 jobs:
   what:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: check flask
-        working-directory: flask
+      - name: check fastapi
+        working-directory: backend
         run: ls -A
       - name: Dump GitHub context
         env:

@@ -1,0 +1,355 @@
+h1,
+h2,
+h3,
+p,
+a,
+li,
+label,
+input,
+option,
+select,
+td,
+button {
+  font-family: "Old English Five", Tahoma;
+  color: white;
+}
+
+/* albums page */
+
+select option, select optgroup {
+  background: black;
+}
+
+#albums {
+  display: grid;
+  grid-template-columns: auto auto;
+}
+
+.query-item > button {
+  margin: 8px 0px 16px 0px;
+}
+
+.albums-img {
+  padding-top: 20px;
+  object-fit: cover;
+  height: 50vh;
+  padding-bottom: 20px;
+  display: block;
+}
+
+#search-form {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+ 
+}
+
+
+#search-form.admin-albums-table, p.admin-albums-table {
+  display: none;
+}
+
+.query-item > input,
+select {
+  width: 15vw;
+} 
+
+
+/* album page */
+
+#album {
+  display: flex;
+  flex-direction: row;
+  gap: 30px;
+}
+
+
+
+#album > div {
+  flex: 1;
+}
+
+.album-img {
+  width: 100%;
+}
+
+.table-img {
+  width: 100%;
+  display: block;
+}
+
+.hideable-path {
+  display: none;
+}
+
+.dispatched-table {
+  width: 100%;
+  border: 1px solid white;
+}
+
+.dispatched-table > tbody > tr > td {
+  border: 1px solid;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.dispatched-table > tbody > tr > td > input {
+  width: 100%;
+  text-align: center;
+  border: none;
+}
+
+.dispatched-table > tbody > tr > td:nth-child(1) {
+  width: 10vw;
+}
+
+.dispatched-table > tbody > tbody > tr > td:nth-child(2) {
+  width: 40vw;
+}
+
+.dispatched-table > tbody> tr > td:nth-child(3) {
+  width: 20vw;
+}
+
+.dispatched-table > tbody > tr > td:nth-child(4) {
+  width: 10vw;
+}
+
+.album-p {
+  margin: 4px 0px 4px 0px;
+}
+
+#info-div > table > tr > td:nth-child(3) {
+  text-align: end;
+}
+
+
+
+/* misc */
+
+input,
+select {
+  color-scheme: dark;
+  background: transparent;
+  padding: 0px;
+  border: none;
+  border-bottom: solid;
+  border-bottom-color:white;
+  outline: none;
+}
+
+label {
+  border-bottom: solid;
+  border-bottom-color:red;
+}
+
+input:hover,
+input:focus,
+button:hover,
+button:focus {
+  text-shadow: red 2px 2px 5px;
+}
+
+.disabled-button {
+  color: grey;
+  pointer-events: none;
+}
+
+button {
+  background-color: black;
+  color: white;
+  margin-top:10px;
+  margin-right:10px;
+  margin-bottom:10px;
+}
+
+i {
+  color: white;
+  font-size: 80%;
+}
+
+a {
+  color: red;
+}
+
+body {
+  background-color: black;
+  overflow-y: scroll;
+}
+
+
+.action-link {
+  padding-top: 10px;
+  display: inline-block;
+}
+
+/* admin albums*/
+
+#songs {
+  width: 70vw;
+}
+
+.shop {
+  background-image: url("imageedit_1_3063756098.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed;
+  background-size: contain;
+}
+
+
+
+.img-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.img-block input, #photo-preview {
+  width: 70vw;
+}
+
+.form-field {
+  vertical-align: middle;
+  width: 50vw;
+  display: flex;
+  gap: 10px;
+}
+
+
+
+.form-field label,.form-field input, .form-field select {
+  flex-basis: 100%;
+  text-align: center;
+}
+
+.form-text-area {
+  width: 50vw;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+
+.form-text-area  textarea{
+  margin-top: 20px;
+  
+  background-color: #1a1c1b;
+  font-family: "Old English Five", Tahoma;
+  color: white;
+}
+
+::-webkit-file-upload-button,::file-selector-button {
+  display: none;
+}
+
+.action-group {
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+  padding-bottom: 20px;
+}
+
+#hidden-action {
+  display: none;
+}
+
+fieldset {
+  border:0 none;
+  padding: 0px;
+  margin: 0px;
+}
+
+.action-group div input[type="radio"] {
+  display: table-cell;
+  height: 100%;
+  vertical-align: middle;
+}
+
+#artists-select {
+  overflow-y: hidden;
+  border-bottom: none;
+}
+
+select::-ms-expand {
+  display: none;
+}
+
+
+
+@media (max-width: 576px)  {
+  #albums {
+    justify-content: center;
+  }
+
+  .albums-div {
+    width: 80vw;
+    
+  }
+
+  .albums-img {
+    width: 100%;
+    height: auto;
+  }
+
+  .form-field, .form-text-area {
+    width: auto;
+  }
+
+  
+}
+
+@media (max-width: 768px)  {
+  .form-field {
+    width: 80vw;
+  }
+
+  .form-text-area {
+    width: 80vw;
+   
+  }
+
+  #album {
+    flex-direction:column;
+  }
+
+  #albums {
+    grid-template-columns: auto;
+    justify-content: flex-start;
+  }
+
+  #search-form {
+    width: auto;
+  }
+
+  .query-item > input,
+  select {
+    width: 20vw;
+  } 
+
+  .query-item > label {
+    display: none;
+  }
+
+  .hideable-path {
+    display: block;
+  }
+  
+  .inverse-hideable-path {
+    display: none;
+  }
+
+  .dispatched-table > tr:nth-child(1) {
+    display: none;
+  }
+
+  .dispatched-table > tbody > tr > td:nth-child(1) {
+    width: 20vw;
+  }
+
+  .dispatched-table > tbody > tr > td:nth-child(2) {
+    width: 60vw;
+  }
+  .dispatched-table > tbody > tr > td:not(:nth-child(1)):not(:nth-child(2)) {
+    display: none;
+  }
+}

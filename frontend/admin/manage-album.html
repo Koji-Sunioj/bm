@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Black Metal | Shop Backend</title>
+    <script src="/assets/app.js"></script>
+    <link href="/assets/old-english-five.css" rel="stylesheet" />
+    <link href="/assets/app.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width" />
+  </head>
+  <body onload="renderAlbumForm()" class="shop">
+    <div id="nav">
+      <a href="/">Homepage</a>
+      <a href="/albums/">Albums</a>
+      <a href="/my-account/" id="account-link">My Account</a>
+      <a href="/admin">Admin</a>
+    </div>
+    <hr />
+    <h1 id="manange-album-title"></h1>
+    <form onsubmit="sendAlbum(event)">
+      <fieldset>
+        <div id="hidden-action">
+          <div>
+            <input
+              type="radio"
+              id="new-radio"
+              name="action"
+              value="new"
+              readonly="true"
+            />
+          </div>
+          <div>
+            <input
+              type="radio"
+              id="edit-radio"
+              name="action"
+              value="edit"
+              readonly="true"
+            />
+          </div>
+          <div>
+            <input type="number" id="existing-album-id" name="album_id" />
+          </div>
+        </div>
+        <hr />
+        <div id="albums-table"></div>
+        <p>details:</p>
+        <div class="form-field">
+          <label for="title">album title:</label>
+          <input
+            type="text"
+            name="title"
+            placeholder="Storm of the light's bane"
+            minlength="1"
+            required
+          />
+        </div>
+        <div class="form-field">
+          <label for="release_year">release year:</label>
+          <input
+            type="number"
+            name="release_year"
+            min="1970"
+            max="2025"
+            placeholder="1984"
+            required
+          />
+        </div>
+        <div class="form-field">
+          <label for="price">price:</label>
+          <input
+            type="number"
+            name="price"
+            placeholder="12.99"
+            pattern="^[0-9]?[0-9].[0-9]{2}"
+            required
+            step="any"
+          />
+        </div>
+        <div class="form-field">
+          <label for="name">artist:</label>
+          <select name="artist_id"></select>
+        </div>
+        <br />
+        <hr />
+        <p>songs:</p>
+        <table class="dispatched-table" id="songs">
+          <tbody>
+            <tr>
+              <td>track</td>
+              <td>name</td>
+              <td>duration</td>
+            </tr>
+            <tr>
+              <td>
+                <input name="track_1" type="number" value="1" readonly="true" />
+              </td>
+              <td>
+                <input
+                  name="song_1"
+                  type="text"
+                  placeholder="At the Fathomless Depths"
+                  minlength="1"
+                  required
+                />
+              </td>
+              <td>
+                <input
+                  name="duration_1"
+                  type="text"
+                  placeholder="2:49"
+                  pattern="^[0-9]{1,2}:[0-9]{2}$"
+                  title="MM:SS or M:SS please"
+                  onkeydown="checkTime(event)"
+                  maxlength="5"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <button type="button" onclick="addSong()">add track</button>
+        <button type="button" onclick="removeSong()">remove track</button>
+        <hr />
+        <p>add a photo:</p>
+        <div class="img-block">
+          <input
+            type="file"
+            accept="image/*"
+            name="photo"
+            id="photo"
+            onchange="addPhoto(event)"
+            required
+          />
+          <img id="photo-preview" />
+        </div>
+        <div class="action-group">
+          <button type="submit">Submit</button>
+        </div>
+      </fieldset>
+    </form>
+  </body>
+</html>

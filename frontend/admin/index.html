@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Black Metal | Shop Backend</title>
+    <script src="/assets/app.js"></script>
+    <link href="/assets/old-english-five.css" rel="stylesheet" />
+    <link href="/assets/app.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width" />
+  </head>
+  <body onload="renderAdminView()" class="shop">
+    <div id="nav">
+      <a href="/">Homepage</a>
+      <a href="/albums/">Albums</a>
+      <a href="/my-account/" id="account-link">My Account</a>
+      <a href="/admin">Admin</a>
+    </div>
+    <hr />
+    <h1>Options:</h1>
+    <div class="action-group">
+      <div>
+        <label for="add">add artist or album</label>
+        <input
+          type="radio"
+          id="add-radio"
+          name="form_action"
+          value="add"
+          onchange="changeView(event)"
+        />
+      </div>
+      <div>
+        <label for="albums">view albums</label>
+        <input
+          type="radio"
+          id="albums-radio"
+          name="form_action"
+          value="albums"
+          onchange="changeView(event)"
+        />
+      </div>
+      <div>
+        <label for="artists">view artists</label>
+        <input
+          type="radio"
+          id="artists-radio"
+          name="form_action"
+          value="artists"
+          onchange="changeView(event)"
+        />
+      </div>
+    </div>
+    <hr />
+    <form
+      onsubmit="submitQuery(event)"
+      id="search-form"
+      class="admin-albums-table"
+    >
+      <div class="query-item">
+        <label for="query">search:</label>
+        <input type="search" name="query" placeholder="album, artist..." />
+      </div>
+      <div class="query-item" id="sort-query">
+        <label for="sort">sort:</label>
+        <select name="sort">
+          <optgroup label="Artist">
+            <option value="name">name</option>
+          </optgroup>
+          <optgroup label="Album">
+            <option value="title">title</option>
+            <option value="stock">stock</option>
+            <option value="price">price</option>
+            <option value="modified">modified</option>
+            <option value="release_year">release year</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="query-item">
+        <label for="direction">order:</label>
+        <select name="direction">
+          <option value="descending">descending</option>
+          <option value="ascending">ascending</option>
+        </select>
+      </div>
+      <div class="query-item">
+        <button type="submit">submit</button>
+      </div>
+    </form>
+    <div id="admin-view"></div>
+    <p id="pages" class="admin-albums-table">pages:</p>
+  </body>
+</html>

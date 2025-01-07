@@ -20,7 +20,7 @@ async def delete_album(album_id):
     del_command = "delete from albums where album_id = %s"
     cursor.execute(del_command, (album_id,))
     if cursor.rowcount > 0:
-        os.remove("/var/www/blackmetal/common/%s" % album["photo"])
+        os.remove("/var/www/bm/common/%s" % album["photo"])
         detail = "album %s was deleted" % album["title"]
     return JSONResponse({"detail": detail}, 200)
 
@@ -74,8 +74,8 @@ async def create_artist(request: Request):
                 cursor.callproc("update_photos", (*photo_matrix,))
 
                 for file in new_files:
-                    new_file = "/var/www/blackmetal/common/%s" % file["new_file"]
-                    old_file = "/var/www/blackmetal/common/%s" % file["old_file"]
+                    new_file = "/var/www/bm/common/%s" % file["new_file"]
+                    old_file = "/var/www/bm/common/%s" % file["old_file"]
                     os.rename(old_file, new_file)
 
     return JSONResponse(response, 200)
@@ -133,7 +133,7 @@ async def create_album(request: Request):
             should_update_tracks = len(to_update_tracks) > 0
             should_update_album = any(fields_to_change.values())
             photo_not_same = filename != album["photo"] and form["photo"].size != os.stat(
-                "/var/www/blackmetal/common/%s" % album["photo"]).st_size
+                "/var/www/bm/common/%s" % album["photo"]).st_size
             should_rename_photo = any(
                 [fields_to_change["artist_id"], fields_to_change["title"]]) and not photo_not_same
 
@@ -158,13 +158,13 @@ async def create_album(request: Request):
             if photo_not_same:
                 content = form["photo"].file.read()
                 save_file(filename, content)
-                os.remove("/var/www/blackmetal/common/%s" % album["photo"])
+                os.remove("/var/www/bm/common/%s" % album["photo"])
                 fields_to_change["photo"] = filename
                 should_update_album = True
 
             if should_rename_photo:
-                new_file = "/var/www/blackmetal/common/%s" % filename
-                old_file = "/var/www/blackmetal/common/%s" % album["photo"]
+                new_file = "/var/www/bm/common/%s" % filename
+                old_file = "/var/www/bm/common/%s" % album["photo"]
                 os.rename(old_file, new_file)
                 fields_to_change["photo"] = filename
                 should_update_album = True

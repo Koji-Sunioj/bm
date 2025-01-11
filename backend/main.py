@@ -7,6 +7,8 @@ from fastapi import FastAPI, APIRouter, Request, Response
 app = FastAPI()
 auth = APIRouter(prefix="/auth")
 
+# hello
+
 
 @ auth.post("/check-token/admin")
 async def check_admin_token(request: Request, response: Response):

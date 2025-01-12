@@ -18,7 +18,7 @@ def bm_format_photoname(name, title, filename):
 
 
 def save_file(filename, content):
-    new_photo = open("/var/www/blackmetal/common/%s" % filename, "wb")
+    new_photo = open("/var/www/bm/common/%s" % filename, "wb")
     new_photo.write(content)
     new_photo.close()
 

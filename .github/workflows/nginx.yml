@@ -1,11 +1,9 @@
-name: sup3
+name: update all
 
 on:
   push:
     branches:
       - main
-    paths:
-      - nginx/**
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -21,4 +19,5 @@ jobs:
           echo "$PRIVATE_KEY" > github-ec2.pem && chmod 600 github-ec2.pem
           ssh -o StrictHostKeyChecking=no -i github-ec2.pem ${USER}@${HOST} \
           'cd /home/ubuntu/bm
-          git pull'
+          git pull
+          pip install requirements.txt'

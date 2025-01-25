@@ -7,7 +7,7 @@ from fastapi import FastAPI, APIRouter, Request, Response
 app = FastAPI()
 auth = APIRouter(prefix="/auth")
 
-# hello 123
+# hello
 
 
 @ auth.post("/check-token/admin")

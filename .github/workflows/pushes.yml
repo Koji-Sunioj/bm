@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Deploy to EC2
+      - name: update EC2
         working-directory: nginx
         env:
           PRIVATE_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
@@ -20,4 +20,4 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i github-ec2.pem ${USER}@${HOST} \
           'cd /home/ubuntu/bm
           git pull
-          pip install requirements.txt'
+          pip install -r /backend/requirements.txt'

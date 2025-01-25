@@ -204,13 +204,13 @@ table "users" {
   column "created" {
     null    = true
     type    = timestamp
-    default = sql("now()")
+    default = sql("timezone('utc'::text, now())")
   }
   primary_key {
     columns = [column.user_id]
   }
   check "users_role_check" {
-    expr = "((role)::text = ANY ((ARRAY['user'::character varying, 'admin'::character varying])::text[]))"
+    expr = "((role)::text = ANY (ARRAY[('user'::character varying)::text, ('admin'::character varying)::text]))"
   }
   unique "users_username_key" {
     columns = [column.username]

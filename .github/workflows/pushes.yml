@@ -1,7 +1,7 @@
 name: update all
 
 on:
-  push:
+  pull_request:
     branches:
       - main
 jobs:
@@ -15,9 +15,11 @@ jobs:
           PRIVATE_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
           HOST: ${{ secrets.EC2_HOST }}
           USER: ${{ secrets.EC2_USER }}
+          DB_PWD: ${{ secrets.DB_PWD }}
         run: |
           echo "$PRIVATE_KEY" > github-ec2.pem && chmod 600 github-ec2.pem
           ssh -o StrictHostKeyChecking=no -i github-ec2.pem ${USER}@${HOST} \
-          'cd /home/ubuntu/bm
+          "cd /home/ubuntu/bm
           git pull
-          pip install -r /backend/requirements.txt'
+          pip install -r /home/ubuntu/bm/backend/requirements.txt -q
+          atlas schema apply -u 'postgres://postgres:${DB_PWD}@localhost:5432/blackmetal' --to file:///home/ubuntu/bm/db/atlas_schema.hcl --auto-approve"

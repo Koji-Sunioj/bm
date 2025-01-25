@@ -20,5 +20,5 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > github-ec2.pem && chmod 600 github-ec2.pem
           ssh -o StrictHostKeyChecking=no -i github-ec2.pem ${USER}@${HOST} \
-          'cat /etc/nginx/sites-available/bm.conf
-          echo $PATH'
+          'cd /home/ubuntu/bm
+          git pull'

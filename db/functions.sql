@@ -53,7 +53,7 @@ $$
     join artists on artists.artist_id = albums.artist_id
     join users on users.user_id = orders.user_id
     where users.username = 'varg_vikernes'
-    group by orders.order_id order by orders.order_id desc) orders ) as orders;
+    group by orders.order_id order by orders.order_id asc) orders ) as orders;
 $$ language sql;
 
 

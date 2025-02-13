@@ -1,7 +1,7 @@
 name: update all
 
 on:
-  pull_request:
+  push:
     branches:
       - main
 jobs:
@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: update EC2
-        working-directory: nginx
+        # working-directory: nginx
         env:
           PRIVATE_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
           HOST: ${{ secrets.EC2_HOST }}

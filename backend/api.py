@@ -16,16 +16,16 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 fe_secret = dotenv_values(".env")["FE_SECRET"]
 
 
-@ api.get("/artists/{artist_id}")
-@ db_functions.tsql
+@api.get("/artists/{artist_id}")
+@db_functions.tsql
 async def get_artist(artist_id, view: str):
     cursor.callproc("get_artist", (artist_id, view))
     artist = cursor.fetchone()
     return JSONResponse(artist, 200)
 
 
-@ api.get("/artists/{artist_id}/album/{album_name}")
-@ db_functions.tsql
+@api.get("/artists/{artist_id}/album/{album_name}")
+@db_functions.tsql
 async def get_album(artist_id, album_name, request: Request, cart: str = None):
     album_name = re.sub("\-", " ", album_name)
     cursor.callproc("get_album", ("artist_id", album_name, artist_id))
@@ -44,8 +44,8 @@ async def get_album(artist_id, album_name, request: Request, cart: str = None):
     return JSONResponse(album, 200)
 
 
-@ api.get("/albums")
-@ db_functions.tsql
+@api.get("/albums")
+@db_functions.tsql
 async def get_albums(page: int = 1, sort: str = "name", direction: str = "ascending", query: str = None):
     albums = {}
     cursor.callproc("get_pages", ('albums', query,))
@@ -55,8 +55,8 @@ async def get_albums(page: int = 1, sort: str = "name", direction: str = "ascend
     return JSONResponse({"albums": albums["data"], "pages": albums["pages"]}, 200)
 
 
-@ api.post("/sign-in")
-@ db_functions.tsql
+@api.post("/sign-in")
+@db_functions.tsql
 async def sign_in(request: Request):
     verified = False
     content = await request.json()
@@ -82,19 +82,19 @@ async def sign_in(request: Request):
     token_string = "token=%s; Path=/; SameSite=Lax" % token
     headers = {"Set-Cookie": token_string}
 
-    return JSONResponse(content={"detail": "signed in"}, headers=headers, status_code=200)
+    return JSONResponse(content={"detail": "you're signed in"}, headers=headers, status_code=200)
 
 
-@ api.get("/orders", dependencies=[Depends(verify_token)])
-@ db_functions.tsql
+@api.get("/orders", dependencies=[Depends(verify_token)])
+@db_functions.tsql
 async def get_orders_cart(request: Request):
     cursor.callproc("get_orders_and_cart", (request.state.sub,))
     orders_cart = cursor.fetchone()
     return JSONResponse(orders_cart, 200)
 
 
-@ api.post("/cart/checkout", dependencies=[Depends(verify_token)])
-@ db_functions.tsql
+@api.post("/cart/checkout", dependencies=[Depends(verify_token)])
+@db_functions.tsql
 async def checkout_cart_items(request: Request):
     cursor.callproc("get_user", (request.state.sub, "checkout"))
     data = cursor.fetchone()["bm_user"]
@@ -112,8 +112,8 @@ async def checkout_cart_items(request: Request):
     return JSONResponse({"detail": response}, 200)
 
 
-@ api.post("/cart/{album_id}/add", dependencies=[Depends(verify_token)])
-@ db_functions.tsql
+@api.post("/cart/{album_id}/add", dependencies=[Depends(verify_token)])
+@db_functions.tsql
 async def add_cart_item(request: Request, album_id):
     cursor.callproc("get_user", (request["state"]["sub"], "owner"))
     user_id = cursor.fetchone()["bm_user"]["user_id"]
@@ -131,8 +131,8 @@ async def add_cart_item(request: Request, album_id):
     return JSONResponse(stock_cart, 200)
 
 
-@ api.post("/cart/{album_id}/remove", dependencies=[Depends(verify_token)])
-@ db_functions.tsql
+@api.post("/cart/{album_id}/remove", dependencies=[Depends(verify_token)])
+@db_functions.tsql
 async def del_cart_item(request: Request, album_id):
     cursor.callproc("get_user", (request["state"]["sub"], "owner"))
     user_id = cursor.fetchone()["bm_user"]["user_id"]
@@ -147,16 +147,16 @@ async def del_cart_item(request: Request, album_id):
     return JSONResponse(stock_cart, 200)
 
 
-@ api.get("/user", dependencies=[Depends(verify_token)])
-@ db_functions.tsql
+@api.get("/user", dependencies=[Depends(verify_token)])
+@db_functions.tsql
 async def get_user(request: Request):
     cursor.callproc("get_user", (request.state.sub, "cart"))
     user = cursor.fetchone()["bm_user"]
     return JSONResponse({"user": jsonable_encoder(user)}, 200)
 
 
-@ api.post("/register")
-@ db_functions.tsql
+@api.post("/register")
+@db_functions.tsql
 async def register(request: Request):
     content = await request.json()
     guest_list = dotenv_values(".env")["GUEST_LIST"].split(",")

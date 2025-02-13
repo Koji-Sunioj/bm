@@ -14,7 +14,7 @@ cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
 
 def tsql(function):
-    @ wraps(function)
+    @wraps(function)
     async def transaction(*args, **kwargs):
         try:
             start = time.time()

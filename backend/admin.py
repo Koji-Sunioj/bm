@@ -10,8 +10,8 @@ admin = APIRouter(prefix="/api/admin",
                   dependencies=[Depends(verify_admin_token)])
 
 
-@ admin.delete("/albums/{album_id}")
-@ db_functions.tsql
+@admin.delete("/albums/{album_id}")
+@db_functions.tsql
 async def delete_album(album_id):
     detail = "there was nothing to delete"
     cursor.callproc(
@@ -25,8 +25,8 @@ async def delete_album(album_id):
     return JSONResponse({"detail": detail}, 200)
 
 
-@ admin.post("/artists")
-@ db_functions.tsql
+@admin.post("/artists")
+@db_functions.tsql
 async def create_artist(request: Request):
     response = {"detail": None}
     form = await request.form()
@@ -81,8 +81,8 @@ async def create_artist(request: Request):
     return JSONResponse(response, 200)
 
 
-@ admin.post("/albums")
-@ db_functions.tsql
+@admin.post("/albums")
+@db_functions.tsql
 async def create_album(request: Request):
     form = await request.form()
     response = {"detail": None}
@@ -205,8 +205,8 @@ async def create_album(request: Request):
     return JSONResponse(response, 200)
 
 
-@ admin.get("/artists")
-@ db_functions.tsql
+@admin.get("/artists")
+@db_functions.tsql
 async def admin_get_artists(page: int = None, sort: str = None, direction: str = None, query: str = None):
 
     response = {}
@@ -226,8 +226,8 @@ async def admin_get_artists(page: int = None, sort: str = None, direction: str =
     return JSONResponse(response, 200)
 
 
-@ admin.delete("/artists/{artist_id}")
-@ db_functions.tsql
+@admin.delete("/artists/{artist_id}")
+@db_functions.tsql
 async def delete_artist(artist_id):
     del_cmd = "delete from artists where artist_id = %s returning name;"
     cursor.execute(del_cmd, (artist_id,))

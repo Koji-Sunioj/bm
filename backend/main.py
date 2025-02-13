@@ -7,10 +7,8 @@ from fastapi import FastAPI, APIRouter, Request, Response
 app = FastAPI()
 auth = APIRouter(prefix="/auth")
 
-# hello 2
 
-
-@ auth.post("/check-token/admin")
+@auth.post("/check-token/admin")
 async def check_admin_token(request: Request, response: Response):
     try:
         jwt_payload = await decode_token(request)
@@ -22,7 +20,7 @@ async def check_admin_token(request: Request, response: Response):
     return response
 
 
-@ auth.post("/check-token")
+@auth.post("/check-token")
 async def check_token(request: Request, response: Response):
     try:
         await decode_token(request)

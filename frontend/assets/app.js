@@ -1006,7 +1006,7 @@ const toUrlCase = (value) => {
 };
 
 const logOut = () => {
-  document.cookie = "token=; Max-Age=0; path=/; domain=" + location.host;
+  document.cookie = "token=; Max-Age=0; path=/;";
 };
 
 //fetches

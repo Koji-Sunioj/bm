@@ -22,5 +22,5 @@ jobs:
           echo "$PRIVATE_KEY" > github-ec2.pem && chmod 600 github-ec2.pem
           ssh -o StrictHostKeyChecking=no -i github-ec2.pem ${USER}@${HOST} \
           "cd /home/ubuntu/bm/db
-          psql -h localhost -d blackmetal -U postgres -tc "select concat('drop function ',routine_name,';') from information_schema.routines where specific_catalog = 'blackmetal' and routine_schema = 'public';" | psql -h localhost -d blackmetal -U postgres
+          psql -h localhost -d blackmetal -U postgres -tc \"select concat('drop function ',routine_name,';') from information_schema.routines where specific_catalog = 'blackmetal' and routine_schema = 'public';\" | psql -h localhost -d blackmetal -U postgres
           "

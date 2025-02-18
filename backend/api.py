@@ -82,7 +82,7 @@ async def sign_in(request: Request):
     token_string = "token=%s; Path=/; SameSite=Lax" % token
     headers = {"Set-Cookie": token_string}
 
-    return JSONResponse(content={"detail": "you're signed in esse"}, headers=headers, status_code=200)
+    return JSONResponse(content={"detail": "you're signed"}, headers=headers, status_code=200)
 
 
 @api.get("/orders", dependencies=[Depends(verify_token)])

@@ -52,7 +52,7 @@ $$
     join albums on albums.album_id = orders_bridge.album_id
     join artists on artists.artist_id = albums.artist_id
     join users on users.user_id = orders.user_id
-    where users.username = $1
+    where users.username = $1 
     group by orders.order_id order by orders.order_id asc) orders ) as orders;
 $$ language sql;
 

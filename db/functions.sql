@@ -62,13 +62,15 @@ $$
 begin
     case view
         when 'user' then 
-            return query select json_build_object('name',artists.name,'bio',artists.bio,
-			'albums',json_agg(json_build_object('album_id',albums.album_id,'artist_id',
+            return query select json_build_object('name',artists.name,'bio',artists.bio,'albums',
+			coalesce(json_agg(json_build_object('album_id',albums.album_id,'artist_id',
 			artists.artist_id,'title',albums.title,'name',artists.name,'release_year',
 			albums.release_year,'photo',albums.photo,'stock',albums.stock,'price',
-			albums.price::float))) as artist from albums 
-            join artists on artists.artist_id = albums.artist_id 
-            where artists.artist_id = $1 group by artists.artist_id;
+			albums.price::float)) 
+			filter (where albums.album_id is not null),'[]')) 
+			as artist from artists 
+			left join albums on artists.artist_id = albums.artist_id 
+			where artists.artist_id = $1 group by artists.artist_id;
         when 'admin' then
             return query select json_build_object('artist_id',artists.artist_id,'name', 
             artists.name,'bio', artists.bio ) as artist 

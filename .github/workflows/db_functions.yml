@@ -1,4 +1,4 @@
-name: update all
+name: update db functions
 
 on:
   push:
@@ -23,4 +23,5 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i github-ec2.pem ${USER}@${HOST} \
           "cd /home/ubuntu/bm/db
           psql -h localhost -d blackmetal -U postgres -tc \"select concat('drop function ',routine_name,';') from information_schema.routines where specific_catalog = 'blackmetal' and routine_schema = 'public';\" | psql -h localhost -d blackmetal -U postgres
+          psql -h localhost -d blackmetal -U postgres -a -f functions.sql
           "

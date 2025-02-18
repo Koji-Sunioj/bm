@@ -40,7 +40,7 @@ $$
     join albums on albums.album_id = cart.album_id
     join artists on artists.artist_id = albums.artist_id
     join users on users.user_id = cart.user_id
-    where users.username = 'varg_vikernes') as cart,
+    where users.username = $1) as cart,
     (select coalesce(json_agg(orders),'[]') as orders from (select 
     json_build_object('order_id',orders.order_id,'dispatched',orders.dispatched,
     'balance',sum(orders_bridge.quantity * albums.price),'albums',
@@ -52,7 +52,7 @@ $$
     join albums on albums.album_id = orders_bridge.album_id
     join artists on artists.artist_id = albums.artist_id
     join users on users.user_id = orders.user_id
-    where users.username = 'varg_vikernes'
+    where users.username = $1
     group by orders.order_id order by orders.order_id asc) orders ) as orders;
 $$ language sql;
 

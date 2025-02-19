@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from datetime import timedelta, datetime, timezone
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException
 
 api = APIRouter(prefix="/api")
 
@@ -162,7 +162,7 @@ async def register(request: Request):
     guest_list = dotenv_values(".env")["GUEST_LIST"].split(",")
     guest_dict = {key.split(":")[0]: key.split(":")[1] for key in guest_list}
     if content["username"] not in guest_dict:
-        raise Exception("not on guest list sorry")
+        raise AuthorizationError("client not on guest list")
     role = guest_dict[content["username"]]
     cursor.callproc(
         'create_user', (content["username"], pwd_context.hash(content["password"]), role))

@@ -3,6 +3,7 @@ import psycopg2
 import psycopg2.extras
 from functools import wraps
 from dotenv import dotenv_values
+from fastapi.responses import JSONResponse
 
 conn = psycopg2.connect(database="blackmetal",
                         host="localhost",
@@ -25,8 +26,14 @@ def tsql(function):
             conn.commit()
             return executed
         except Exception as error:
-            print(error)
             conn.rollback()
+            error_string = "%s %s" % (
+                error.__class__.__name__, function.__name__)
+            print("error type and function: " + error_string)
+            print(error)
+            match error_string:
+                case "UniqueViolation register" | "AuthorizationError register":
+                    return JSONResponse({"detail": "not on guest list or username is taken"}, 401)
             return False
 
     return transaction

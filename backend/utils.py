@@ -10,6 +10,10 @@ fe_secret = dotenv_values(".env")["FE_SECRET"]
 be_secret = dotenv_values(".env")["BE_SECRET"]
 
 
+class AuthorizationError(Exception):
+    pass
+
+
 def bm_format_photoname(name, title, filename):
     file_params = "%s-%s" % (name.lower(), title.lower())
     new_filename = re.sub("[^a-z0-9\s\-]", "", file_params).replace(" ", "-")

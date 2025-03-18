@@ -1,4 +1,5 @@
 import re
+import requests
 import db_functions
 from utils import *
 from jose import jwt
@@ -27,21 +28,24 @@ async def get_artist(artist_id, view: str):
 @api.get("/artists/{artist_id}/album/{album_name}")
 @db_functions.tsql
 async def get_album(artist_id, album_name, request: Request, cart: str = None):
+
     album_name = re.sub("\-", " ", album_name)
     cursor.callproc("get_album", ("artist_id", album_name, artist_id))
     album = cursor.fetchone()
+
+    album_w_samples = parse_samples(album)
 
     try:
         if "cookie" in request.headers and cart == "get":
             jwt_payload = await decode_token(request)
             cursor.callproc("get_cart_count", (jwt_payload["sub"],
-                            album["album"]["album_id"]))
+                            album_w_samples["album"]["album_id"]))
             cart = cursor.fetchone()
-            album.update(cart)
+            album_w_samples.update(cart)
     except:
         pass
 
-    return JSONResponse(album, 200)
+    return JSONResponse(album_w_samples, 200)
 
 
 @api.get("/albums")

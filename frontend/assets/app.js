@@ -800,8 +800,6 @@ const renderAlbum = async () => {
   const album_title = noSpaces.match(/(?<=album\/).*/)[0];
   const artist_id = noSpaces.match(/(?<=artist\/)\d+(?=\/.*\/album)/)[0];
 
-  console.log(artist_id, album_title);
-
   const response = await fetch(
     `/api/artists/${artist_id}/album/${album_title}?cart=get`
   );
@@ -861,25 +859,48 @@ const renderAlbum = async () => {
 
   songs.forEach((dbSong) => {
     const row = element("tr");
+    row.classList.add("album-track");
+
     Object.keys(dbSong).forEach((item) => {
       if (dbSong[item] !== null) {
         let text = "";
+        const td = element("td");
+
         switch (item) {
           case "track":
             text = `${dbSong[item]}. `;
+            td.innerText = text;
             break;
           case "duration":
             const slice = dbSong[item] >= 600 ? 14 : 15;
             text = `${new Date(dbSong[item] * 1000)
               .toISOString()
               .slice(slice, 19)}`;
+            td.innerText = text;
             break;
           case "song":
             text = `${dbSong[item]}`;
+            if (dbSong.hasOwnProperty("preview")) {
+              if (document.getElementById("music-player") == null) {
+                const musicPlayer = element("audio");
+                musicPlayer.controls = true;
+                musicPlayer.autoplay = true;
+                musicPlayer.setAttribute("id", "music-player");
+                infoDiv.appendChild(musicPlayer);
+              }
+
+              const songButton = element("button");
+              songButton.onclick = () => {
+                playSample(dbSong["preview"]);
+              };
+              songButton.classList.add("sample-btn");
+              songButton.innerText = text;
+              td.appendChild(songButton);
+            } else {
+              td.innerText = text;
+            }
             break;
         }
-        const td = element("td");
-        td.innerText = text;
         row.appendChild(td);
       }
     });
@@ -920,6 +941,11 @@ const renderAlbum = async () => {
       infoDiv.appendChild(element);
     });
   }
+};
+
+const playSample = (preview) => {
+  const musicPlayer = document.getElementById("music-player");
+  musicPlayer.src = preview;
 };
 
 const renderAuthForm = () => {

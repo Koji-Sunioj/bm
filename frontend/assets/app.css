@@ -14,6 +14,12 @@ button {
   color: white;
 }
 
+table {
+  border-spacing: 0 !important;
+}
+
+
+
 /* albums page */
 
 select option, select optgroup {
@@ -155,7 +161,21 @@ button:focus {
   pointer-events: none;
 }
 
+button.sample-btn {
+  border:0;
+  padding:0;
+  margin:0;
+}
+
+#music-player {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  display: block;
+  
+}
+
 button {
+  cursor: pointer;
   background-color: black;
   color: white;
   margin-top:10px;

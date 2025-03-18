@@ -1,5 +1,6 @@
 
 import re
+import requests
 import base64
 from jose import jwt
 from dotenv import dotenv_values
@@ -12,6 +13,34 @@ be_secret = dotenv_values(".env")["BE_SECRET"]
 
 class AuthorizationError(Exception):
     pass
+
+
+def parse_samples(album):
+    try:
+        deezer_artists = "https://api.deezer.com/search/album?q=%s" % album["album"]["title"]
+        response = requests.get(deezer_artists)
+        sample_album_id = None
+
+        for sample_album in response.json()["data"]:
+            same_album = sample_album["title"].lower(
+            ) == album["album"]["title"].lower()
+            same_artist = sample_album["artist"]["name"].lower(
+            ) == album["album"]["name"].lower()
+
+            if same_album and same_artist:
+                sample_album_id = sample_album["id"]
+                break
+
+        if sample_album_id != None:
+            deezer_album = "https://api.deezer.com/album/%s/tracks" % sample_album_id
+            response = requests.get(deezer_album)
+
+            for sample_track, bm_track in zip(response.json()["data"], album["songs"]):
+                if sample_track["title"].lower() == bm_track["song"].lower():
+                    bm_track["preview"] = sample_track["preview"]
+        return album
+    except:
+        return album
 
 
 def bm_format_photoname(name, title, filename):

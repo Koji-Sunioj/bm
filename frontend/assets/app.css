@@ -20,6 +20,8 @@ table {
 
 /* albums page */
 
+
+
 select option, select optgroup {
   background: black;
 }
@@ -153,6 +155,10 @@ button:focus {
   pointer-events: none;
 }
 
+#songs-table > tr > td {
+  vertical-align: top;
+}
+
 button.sample-btn {
   border:0;
   padding:0;
@@ -161,7 +167,11 @@ button.sample-btn {
   color: red;
   text-shadow: none;
   text-decoration:underline;
+  display: block !important;
+  text-align: left !important;
 }
+
+
 
 #music-player {
   padding-top: 10px;

@@ -17,8 +17,8 @@ class AuthorizationError(Exception):
 
 def parse_samples(album):
     try:
-        deezer_artists = "https://api.deezer.com/search/album?q=%s" % album["album"]["title"]
-        response = requests.get(deezer_artists)
+        deezer_albums = "https://api.deezer.com/search/album?q=%s" % album["album"]["title"]
+        response = requests.get(deezer_albums)
         sample_album_id = None
 
         for sample_album in response.json()["data"]:

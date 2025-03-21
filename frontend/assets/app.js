@@ -612,8 +612,6 @@ const renderOrders = async () => {
   const response = await fetch("/api/orders");
   const { orders, cart } = await response.json();
 
-  console.log(orders, cart);
-
   const targetDiv = document.getElementById("details");
   const hasCart = cart.balance !== null && cart.albums !== null;
 
@@ -881,14 +879,7 @@ const renderAlbum = async () => {
           case "song":
             text = `${dbSong[item]}`;
             if (dbSong.hasOwnProperty("preview")) {
-              if (document.getElementById("music-player") == null) {
-                const musicPlayer = element("audio");
-                musicPlayer.controls = true;
-                musicPlayer.autoplay = true;
-                musicPlayer.setAttribute("id", "music-player");
-                infoDiv.appendChild(musicPlayer);
-              }
-
+              renderMusicPlayer(dbSong, infoDiv);
               const songButton = element("button");
               songButton.onclick = () => {
                 playSample(dbSong["preview"]);
@@ -901,18 +892,21 @@ const renderAlbum = async () => {
             }
             break;
         }
-        row.appendChild(td);
+        if (td.innerHTML.length !== 0) {
+          row.appendChild(td);
+        }
       }
     });
 
     table.appendChild(row);
   });
 
-  if (cart !== undefined) {
-    const [cartInfo, removeBtn] = elements(["i", "button"]);
+  const cartInfo = element("i");
+  cartInfo.id = "cart-info";
+  cartInfo.style.display = "block";
 
-    cartInfo.id = "cart-info";
-    cartInfo.style.display = "block";
+  if (cart !== undefined) {
+    const removeBtn = element("button");
     salesBtn.id = "buy-album";
     salesBtn.innerText = "Add to cart";
     removeBtn.id = "remove-button";
@@ -931,21 +925,38 @@ const renderAlbum = async () => {
     removeBtn.onclick = () => {
       removeAlbum(album.album_id);
     };
-
     if (cart > 0) {
       cartInfo.innerText = `${cart} of these albums are in your cart.`;
       removeBtn.style.display = "inline-block";
+    } else if (cart === 0 && album.stock === 0) {
+      cartInfo.innerText = "no albums in stock. we will replenish this soon.";
     }
-
     [salesBtn, removeBtn, cartInfo].forEach((element) => {
       infoDiv.appendChild(element);
     });
+  } else if (album.stock > 0 && cart === undefined) {
+    cartInfo.innerText = "Sign in to add this album to your cart";
+    infoDiv.appendChild(cartInfo);
+  } else if (album.stock === 0 && cart === undefined) {
+    cartInfo.innerText = "no albums in stock. we will replenish this soon.";
+    infoDiv.appendChild(cartInfo);
   }
 };
 
 const playSample = (preview) => {
   const musicPlayer = document.getElementById("music-player");
+  musicPlayer.autoplay = true;
   musicPlayer.src = preview;
+};
+
+const renderMusicPlayer = (dbSong, infoDiv) => {
+  if (document.getElementById("music-player") == null) {
+    const musicPlayer = element("audio");
+    musicPlayer.controls = true;
+    musicPlayer.setAttribute("id", "music-player");
+    musicPlayer.src = dbSong["preview"];
+    infoDiv.appendChild(musicPlayer);
+  }
 };
 
 const renderAuthForm = () => {
@@ -953,13 +964,10 @@ const renderAuthForm = () => {
     location: { pathname },
   } = window;
 
-  let h1text = "";
   switch (pathname) {
     case "/register":
-      h1text = "Register as new user";
       break;
     default:
-      h1text = "Sign In";
       const nodes = ["a", "br"].map((tag) => element(tag));
       const anchor = nodes.find((node) => node.tagName === "A");
       anchor.setAttribute("href", "/register");
@@ -970,8 +978,6 @@ const renderAuthForm = () => {
       });
       break;
   }
-
-  //document.querySelector("h1").innerHTML = h1text;
 };
 
 //misc functions

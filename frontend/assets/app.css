@@ -18,8 +18,6 @@ table {
   border-spacing: 0 !important;
 }
 
-
-
 /* albums page */
 
 select option, select optgroup {
@@ -50,7 +48,6 @@ select option, select optgroup {
  
 }
 
-
 #search-form.admin-albums-table, p.admin-albums-table {
   display: none;
 }
@@ -60,7 +57,6 @@ select {
   width: 15vw;
 } 
 
-
 /* album page */
 
 #album {
@@ -68,8 +64,6 @@ select {
   flex-direction: row;
   gap: 30px;
 }
-
-
 
 #album > div {
   flex: 1;
@@ -109,7 +103,7 @@ select {
   width: 10vw;
 }
 
-.dispatched-table > tbody > tbody > tr > td:nth-child(2) {
+.dispatched-table > tbody > tr > td:nth-child(2) {
   width: 40vw;
 }
 
@@ -128,8 +122,6 @@ select {
 #info-div > table > tr > td:nth-child(3) {
   text-align: end;
 }
-
-
 
 /* misc */
 
@@ -165,13 +157,15 @@ button.sample-btn {
   border:0;
   padding:0;
   margin:0;
+  font-size: 16px;
+  color: red;
+  text-shadow: none;
+  text-decoration:underline;
 }
 
 #music-player {
   padding-top: 10px;
-  padding-bottom: 10px;
   display: block;
-  
 }
 
 button {
@@ -197,7 +191,6 @@ body {
   overflow-y: scroll;
 }
 
-
 .action-link {
   padding-top: 10px;
   display: inline-block;
@@ -217,8 +210,6 @@ body {
   background-size: contain;
 }
 
-
-
 .img-block {
   display: flex;
   flex-direction: column;
@@ -234,8 +225,6 @@ body {
   display: flex;
   gap: 10px;
 }
-
-
 
 .form-field label,.form-field input, .form-field select {
   flex-basis: 100%;
@@ -294,30 +283,6 @@ select::-ms-expand {
   display: none;
 }
 
-
-
-@media (max-width: 576px)  {
-  #albums {
-    justify-content: center;
-  }
-
-  .albums-div {
-    width: 80vw;
-    
-  }
-
-  .albums-img {
-    width: 100%;
-    height: auto;
-  }
-
-  .form-field, .form-text-area {
-    width: auto;
-  }
-
-  
-}
-
 @media (max-width: 768px)  {
   .form-field {
     width: 80vw;
@@ -371,5 +336,33 @@ select::-ms-expand {
   }
   .dispatched-table > tbody > tr > td:not(:nth-child(1)):not(:nth-child(2)) {
     display: none;
+  }
+
+  #songs-table {
+    width: 70%;
+  }
+}
+
+@media (max-width: 576px)  {
+  #albums {
+    justify-content: center;
+  }
+
+  .albums-div {
+    width: 80vw;
+    
+  }
+
+  .albums-img {
+    width: 100%;
+    height: auto;
+  }
+
+  .form-field, .form-text-area {
+    width: auto;
+  }
+
+  #songs-table {
+    width: 100%;
   }
 }

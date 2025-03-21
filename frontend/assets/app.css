@@ -168,6 +168,11 @@ button.sample-btn {
   display: block;
 }
 
+i {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
 button {
   cursor: pointer;
   background-color: black;

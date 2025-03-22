@@ -239,45 +239,6 @@ const utcToLocale = (date) => {
   return `${day}.${month}.${year} ${date.toTimeString().substring(0, 5)}`;
 };
 
-const renderArtistForm = async () => {
-  const {
-    location: { search },
-  } = window;
-  const url = new URLSearchParams(search);
-  const action = url.get("action");
-  checkAndRedirect([action], "?action=new");
-  const h1 = document.getElementById("manange-artist-title");
-
-  switch (action) {
-    case "edit":
-      const artistName = url.get("artist_id");
-      checkAndRedirect([artistName], "?action=new");
-      const response = await fetch(`/api/artists/${artistName}?view=admin`);
-      const {
-        artist: { name, bio, artist_id },
-      } = await response.json();
-      document.getElementById("existing-artist-id").value = artist_id;
-      document.querySelector("[name=bio]").value = bio;
-      document.querySelector("[name=name]").value = name;
-      h1.innerHTML = `Edit artist ${name}`;
-
-      const actionGroup = document.querySelector(".action-group");
-      const deleteButton = element("button");
-      deleteButton.setAttribute("type", "button");
-      deleteButton.onclick = () => {
-        deleteArtist(artist_id);
-      };
-      deleteButton.innerText = "Delete";
-      actionGroup.appendChild(deleteButton);
-      break;
-    case "new":
-      h1.innerHTML = `Create a new artist`;
-      break;
-  }
-
-  document.getElementById(action + "-radio").checked = true;
-};
-
 const deleteArtist = async (artist_id) => {
   const deletePrompt = prompt(
     "are you sure you want to delete this artist? type 'yes' or 'no'"
@@ -296,10 +257,10 @@ const deleteArtist = async (artist_id) => {
   }
 };
 
-const sendAlbum = async (event) => {
+const sendArtist = async (event) => {
   event.preventDefault();
-  const fieldSet = document.querySelector("fieldset");
   const currentForm = new FormData(event.target);
+  const fieldSet = document.querySelector("fieldset");
   fieldSet.disabled = true;
 
   for (var pair of currentForm.entries()) {
@@ -308,8 +269,89 @@ const sendAlbum = async (event) => {
     }
   }
 
+  const method = urlActionMethod();
+
+  const response = await fetch("/api/admin/artists", {
+    method: method,
+    body: currentForm,
+  });
+  const { status } = response;
+  const { detail, artist_id } = await response.json();
+
+  alert(detail);
+
+  fieldSet.disabled = false;
+
+  if (status === 200 && name !== undefined) {
+    const urlParams = `?action=edit&artist_id=${artist_id}`;
+    window.location.search = urlParams;
+  }
+};
+
+const renderArtistForm = async () => {
+  const {
+    location: { search },
+  } = window;
+  const url = new URLSearchParams(search);
+  const action = url.get("action");
+  checkAndRedirect([action], "?action=new");
+  const h1 = document.getElementById("manange-artist-title");
+
+  switch (action) {
+    case "edit":
+      const artistID = url.get("artist_id");
+      checkAndRedirect([artistID], "?action=new");
+      const response = await fetch(`/api/artists/${artistID}?view=admin`);
+      const {
+        artist: { name, bio, artist_id },
+      } = await response.json();
+
+      unHideInput("artist_id", artist_id);
+
+      document.querySelector("[name=bio]").value = bio;
+      document.querySelector("[name=name]").value = name;
+      h1.innerHTML = `Edit artist ${name}`;
+
+      const actionGroup = document.querySelector(".action-group");
+      const deleteButton = element("button");
+      deleteButton.setAttribute("type", "button");
+      deleteButton.onclick = () => {
+        deleteArtist(artist_id);
+      };
+      deleteButton.innerText = "Delete";
+      actionGroup.appendChild(deleteButton);
+      break;
+    case "new":
+      h1.innerHTML = `Create a new artist`;
+      break;
+  }
+};
+
+const urlActionMethod = () => {
+  const {
+    location: { search },
+  } = window;
+  const url = new URLSearchParams(search);
+  const method = { edit: "PATCH", new: "POST" }[url.get("action")];
+  return method;
+};
+
+const sendAlbum = async (event) => {
+  event.preventDefault();
+  const fieldSet = document.querySelector("fieldset");
+  const currentForm = new FormData(event.target);
+  fieldSet.disabled = true;
+
+  const method = urlActionMethod();
+
+  for (var pair of currentForm.entries()) {
+    if (typeof pair[1] === "string") {
+      currentForm.set(pair[0], pair[1].trim());
+    }
+  }
+
   const response = await fetch("/api/admin/albums", {
-    method: "POST",
+    method: method,
     body: currentForm,
   });
   const { status } = response;
@@ -325,32 +367,11 @@ const sendAlbum = async (event) => {
   }
 };
 
-const sendArtist = async (event) => {
-  event.preventDefault();
-  const currentForm = new FormData(event.target);
-  const fieldSet = document.querySelector("fieldset");
-  fieldSet.disabled = true;
-
-  for (var pair of currentForm.entries()) {
-    if (typeof pair[1] === "string") {
-      currentForm.set(pair[0], pair[1].trim());
-    }
-  }
-
-  const response = await fetch("/api/admin/artists", {
-    method: "POST",
-    body: currentForm,
-  });
-  const { status } = response;
-  const { detail, artist_id } = await response.json();
-  fieldSet.disabled = false;
-
-  alert(detail);
-
-  if (status === 200 && name !== undefined) {
-    const urlParams = `?action=edit&artist_id=${artist_id}`;
-    window.location.search = urlParams;
-  }
+const unHideInput = (field, value) => {
+  const hiddenInputDiv = document.querySelector(`[name=${field}]`);
+  hiddenInputDiv.value = value;
+  hiddenInputDiv.parentElement.style.display = "flex";
+  hiddenInputDiv.style.backgroundColor = "grey";
 };
 
 const renderAlbumForm = async () => {
@@ -389,7 +410,8 @@ const renderAlbumForm = async () => {
       );
 
       h1.innerText = `Edit ${title} by ${name}`;
-      document.getElementById("existing-album-id").value = album_id;
+
+      unHideInput("album_id", album_id);
 
       ["title", "release_year", "price"].forEach((key) => {
         const input = document.querySelector(`[name=${key}]`);
@@ -441,8 +463,6 @@ const renderAlbumForm = async () => {
       h1.innerText = "Create a album";
       break;
   }
-
-  document.getElementById(action + "-radio").checked = true;
 };
 
 const deleteAlbum = async (album_id) => {

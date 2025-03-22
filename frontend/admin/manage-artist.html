@@ -18,31 +18,12 @@
     <h1 id="manange-artist-title"></h1>
     <form onsubmit="sendArtist(event)">
       <fieldset>
-        <div id="hidden-action">
-          <div>
-            <input
-              type="radio"
-              id="new-radio"
-              name="action"
-              value="new"
-              readonly="true"
-            />
-          </div>
-          <div>
-            <input
-              type="radio"
-              id="edit-radio"
-              name="action"
-              value="edit"
-              readonly="true"
-            />
-          </div>
-          <div>
-            <input type="number" id="existing-artist-id" name="artist_id" />
-          </div>
-        </div>
         <hr />
         <p>details:</p>
+        <div class="form-field hidden-input">
+          <label for="title">artist id:</label>
+          <input type="text" name="artist_id" readonly />
+        </div>
         <div class="form-field">
           <label for="name">artist name:</label>
           <input

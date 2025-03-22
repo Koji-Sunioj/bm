@@ -26,6 +26,7 @@ async def delete_album(album_id):
 
 
 @admin.post("/artists")
+@admin.patch("/artists")
 @db_functions.tsql
 async def create_artist(request: Request):
     response = {"detail": None}
@@ -36,22 +37,23 @@ async def create_artist(request: Request):
 
     existing_artist = cursor.fetchone()
 
-    new_artist_exists = form["action"] == "new" and existing_artist != None
-    edit_artist_exists = form["action"] == "edit" and existing_artist != None and str(
+    new_artist_exists = request.method == "POST" and existing_artist != None
+    edit_artist_exists = request.method == "PATCH" and existing_artist != None and str(
         existing_artist["artist_id"]) != str(form["artist_id"])
 
     if any([new_artist_exists, edit_artist_exists]):
         response["detail"] = "that artist exists"
         return JSONResponse(response, 409)
 
-    match form["action"]:
-        case "new":
+    match request.method:
+
+        case "POST":
             cursor.callproc("create_artist", (form["name"], form["bio"]))
             new_artist = cursor.fetchone()
             response["detail"] = "artist %s created" % new_artist["name"]
             response["artist_id"] = new_artist["artist_id"]
 
-        case "edit":
+        case "PATCH":
             cursor.callproc("get_artist", (form["artist_id"], "user"))
             artist = cursor.fetchone()["artist"]
 
@@ -61,12 +63,11 @@ async def create_artist(request: Request):
             if any(fields_to_change.values()):
                 cursor.callproc(
                     "update_artist", (form["artist_id"], * fields_to_change.values()))
-
                 updated = cursor.fetchone()
                 response["detail"] = "artist %s updated" % updated["name"]
                 response["artist_id"] = updated["artist_id"]
 
-            if fields_to_change["name"] != None:
+            if fields_to_change["name"] != None and len(artist["albums"]) > 0:
                 new_files = [{"album_id": album["album_id"], "new_file": bm_format_photoname(
                     form["name"], album["title"], album["photo"]), "old_file": album["photo"]} for album in artist["albums"]]
 
@@ -82,18 +83,19 @@ async def create_artist(request: Request):
 
 
 @admin.post("/albums")
+@admin.patch("/albums")
 @db_functions.tsql
-async def create_album(request: Request):
+async def manage_album(request: Request):
     form = await request.form()
     response = {"detail": None}
 
     cursor.callproc("get_artist", (form["artist_id"], "user"))
     artist = cursor.fetchone()["artist"]
 
-    edit_album_exists = form["action"] == "edit" and len(
+    edit_album_exists = request.method == "PATCH" and len(
         [album for album in artist["albums"] if album["album_id"] != int(form['album_id']) and album["title"].lower() == form["title"].lower()]) > 0
 
-    new_album_exists = form["action"] == "new" and form["title"].lower() in [
+    new_album_exists = request.method == "POST" and form["title"].lower() in [
         row["title"].lower() for row in artist["albums"]]
 
     if any([new_album_exists, edit_album_exists]):
@@ -102,8 +104,28 @@ async def create_album(request: Request):
     filename = bm_format_photoname(
         artist["name"], form["title"], form["photo"].filename)
 
-    match form['action']:
-        case "edit":
+    match request.method:
+
+        case "POST":
+            content = form["photo"].file.read()
+            save_file(filename, content)
+
+            insert_album_params = (
+                form["title"], form["release_year"], form["price"], filename, form["artist_id"])
+
+            cursor.callproc("insert_album", insert_album_params)
+
+            inserted = cursor.fetchone()
+
+            new_songs = form_songs_to_list(form, inserted["album_id"])
+            inserted_matrix = dict_list_to_matrix(new_songs)
+            cursor.callproc("insert_songs", (* inserted_matrix,))
+
+            response.update(
+                {"title": inserted["title"], "artist_id": inserted["artist_id"]})
+            response["detail"] = "album %s created" % inserted["title"]
+
+        case "PATCH":
             cursor.callproc(
                 "get_album", ("album_id", None, form['album_id']))
 
@@ -182,25 +204,6 @@ async def create_album(request: Request):
                 response["detail"] = "album %s updated" % updated_album["title"]
             else:
                 response["detail"] = "there was nothing to update"
-
-        case "new":
-            content = form["photo"].file.read()
-            save_file(filename, content)
-
-            insert_album_params = (
-                form["title"], form["release_year"], form["price"], filename, form["artist_id"])
-
-            cursor.callproc("insert_album", insert_album_params)
-
-            inserted = cursor.fetchone()
-
-            new_songs = form_songs_to_list(form, inserted["album_id"])
-            inserted_matrix = dict_list_to_matrix(new_songs)
-            cursor.callproc("insert_songs", (* inserted_matrix,))
-
-            response.update(
-                {"title": inserted["title"], "artist_id": inserted["artist_id"]})
-            response["detail"] = "album %s created" % inserted["title"]
 
     return JSONResponse(response, 200)
 

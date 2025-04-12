@@ -18,7 +18,7 @@
     <h1>Options:</h1>
     <div class="action-group">
       <div>
-        <label for="add">add artist or album</label>
+        <label for="add">admin tasks</label>
         <input
           type="radio"
           id="add-radio"
@@ -44,6 +44,16 @@
           id="artists-radio"
           name="form_action"
           value="artists"
+          onchange="changeView(event)"
+        />
+      </div>
+      <div>
+        <label for="admin">view stock requests</label>
+        <input
+          type="radio"
+          id="admin-radio"
+          name="form_action"
+          value="admin"
           onchange="changeView(event)"
         />
       </div>

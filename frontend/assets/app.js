@@ -64,12 +64,16 @@ const renderAdminView = async () => {
 
   switch (view) {
     case "add":
-      const [manageArtist, mangeAlbum, br] = elements(["a", "a", "br"]);
+      const [manageArtist, managePO, mangeAlbum] = elements(["a", "a", "a"]);
       manageArtist.innerText = "Add an artist";
       manageArtist.setAttribute("href", "/admin/manage-artist?action=new");
       mangeAlbum.innerText = "Add an album";
       mangeAlbum.setAttribute("href", "/admin/manage-album?action=new");
-      [manageArtist, br, mangeAlbum].forEach((element) => {
+      managePO.innerText = "Add purchase order";
+      managePO.setAttribute("href", "/admin/manage-stock?action=new");
+
+      [manageArtist, mangeAlbum, managePO].forEach((element) => {
+        element.style.display = "block";
         viewDiv.appendChild(element);
       });
       break;
@@ -209,6 +213,32 @@ const renderAdminView = async () => {
 
         renderPages(pages, sort, direction, searchParam, "albums");
       }
+      break;
+    case "admin":
+      {
+        const stockOrdersLink = element("p");
+        stockOrdersLink.innerText = "Manage stock requests";
+
+        viewDiv.appendChild(stockOrdersLink);
+      }
+      break;
+  }
+};
+
+const renderPurchaseForm = () => {
+  const {
+    location: { search },
+  } = window;
+  const url = new URLSearchParams(search);
+  const action = url.get("action");
+  checkAndRedirect([action], "?action=new");
+  const h1 = document.getElementById("manange-stock-title");
+  switch (action) {
+    case "edit":
+      h1.innerHTML = `Edit purchase order`;
+      break;
+    case "new":
+      h1.innerHTML = `Create a new purchase order`;
       break;
   }
 };
@@ -505,6 +535,8 @@ const changeView = async (event) => {
     target: { value: view },
   } = event;
 
+  console.log(view);
+
   let urlParams = "";
 
   switch (view) {
@@ -516,6 +548,9 @@ const changeView = async (event) => {
       break;
     case "artists":
       urlParams = "?view=artists&page=1&sort=modified&direction=descending";
+      break;
+    case "admin":
+      urlParams = "?view=admin";
       break;
   }
 

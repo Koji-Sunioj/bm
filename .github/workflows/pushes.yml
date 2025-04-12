@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -25,6 +27,7 @@ jobs:
           git pull
           pip install -r /home/ubuntu/bm/backend/requirements.txt -q
           atlas schema apply -u 'postgres://postgres:${DB_PWD}@localhost:5432/blackmetal' --to file:///home/ubuntu/bm/db/atlas_schema.hcl --auto-approve
+          echo $BACKEND_ENV | base64 -d > test.txt
           sudo nginx -s reload
           lsof -t -i:8000 | xargs kill
           sudo -u ubuntu python3 -m gunicorn --worker-class uvicorn.workers.UvicornWorker --chdir /home/ubuntu/bm/backend/ --daemon main:app --error-logfile backend-error.log"

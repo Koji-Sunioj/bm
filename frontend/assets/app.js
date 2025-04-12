@@ -233,7 +233,7 @@ const renderPurchaseForm = async () => {
   const action = url.get("action");
   checkAndRedirect([action], "?action=new");
   const h1 = document.getElementById("manange-stock-title");
-  const response = await fetch("/api/admin/artists");
+  let response = await fetch("/api/admin/artists");
   const { artists } = await response.json();
 
   const artistSelect = document.querySelector("[name=artist_id]");
@@ -245,6 +245,28 @@ const renderPurchaseForm = async () => {
     artistSelect.appendChild(newOption);
   });
 
+  const albumsUrl = `/api/artists/${artistSelect.value}?view=user`;
+  response = await fetch(albumsUrl);
+  const {
+    artist: { albums },
+  } = await response.json();
+
+  const albumSelect = document.querySelector("[name=album_id]");
+  albums.forEach((album) => {
+    const { album_id, title } = album;
+    const newOption = element("option");
+    newOption.innerHTML = title;
+    newOption.value = album_id;
+    albumSelect.appendChild(newOption);
+  });
+
+  const firstAlbum = albums.find(
+    (album) => album.album_id === Number(albumSelect.value)
+  );
+
+  document.querySelector("[name=stock]").value = firstAlbum.stock;
+  document.querySelector("[name=price]").value = firstAlbum.price;
+
   switch (action) {
     case "edit":
       h1.innerHTML = `Edit purchase order`;
@@ -253,6 +275,38 @@ const renderPurchaseForm = async () => {
       h1.innerHTML = `Create a new purchase order`;
       break;
   }
+};
+
+const changeAlbum = async (event) => {
+  const albumTitle = event.target.options[event.target.selectedIndex].text;
+};
+
+const changeAlbums = async (event) => {
+  const albumsUrl = `/api/artists/${event.target.value}?view=user`;
+  response = await fetch(albumsUrl);
+  const {
+    artist: { albums },
+  } = await response.json();
+
+  const albumSelect = document.querySelector("[name=album_id]");
+  albumSelect.childNodes.forEach((node) => {
+    node.remove();
+  });
+
+  albums.forEach((album) => {
+    const { album_id, title } = album;
+    const newOption = element("option");
+    newOption.innerHTML = title;
+    newOption.value = album_id;
+    albumSelect.appendChild(newOption);
+  });
+
+  const firstAlbum = albums.find(
+    (album) => album.album_id === Number(albumSelect.value)
+  );
+
+  document.querySelector("[name=stock]").value = firstAlbum.stock;
+  document.querySelector("[name=price]").value = firstAlbum.price;
 };
 
 const renderPages = (pages, sort, direction, searchParam, view = null) => {

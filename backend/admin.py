@@ -229,6 +229,15 @@ async def admin_get_artists(page: int = None, sort: str = None, direction: str =
     return JSONResponse(response, 200)
 
 
+@admin.get("/albums")
+@db_functions.tsql
+async def admin_get_artists():
+    response = {}
+    command = "select album_id,title from albums"
+    # response["albums"] = cursor.fetchone()["artists"]
+    return JSONResponse(response, 200)
+
+
 @admin.delete("/artists/{artist_id}")
 @db_functions.tsql
 async def delete_artist(artist_id):

@@ -22,11 +22,19 @@
         <p>details:</p>
         <div class="form-field">
           <label for="name">artist:</label>
-          <select name="artist_id"></select>
+          <select name="artist_id" onchange="changeAlbums(event)"></select>
         </div>
         <div class="form-field">
           <label for="name">album:</label>
-          <select name="album_id"></select>
+          <select name="album_id" onchange="changeAlbum(event)"></select>
+        </div>
+        <div class="form-field">
+          <label for="stock">current stock:</label>
+          <input type="number" name="stock" readonly />
+        </div>
+        <div class="form-field">
+          <label for="price">price:</label>
+          <input type="number" name="price" readonly />
         </div>
         <hr />
         <table class="purchase-order-lines" id="purchase-order-lines">

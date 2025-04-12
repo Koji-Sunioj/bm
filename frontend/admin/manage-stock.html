@@ -16,5 +16,34 @@
     </div>
     <hr />
     <h1 id="manange-stock-title"></h1>
+    <form onsubmit="sendArtist(event)">
+      <fieldset>
+        <hr />
+        <p>details:</p>
+        <div class="form-field">
+          <label for="name">artist:</label>
+          <select name="artist_id"></select>
+        </div>
+        <div class="form-field">
+          <label for="name">album:</label>
+          <select name="album_id"></select>
+        </div>
+        <hr />
+        <table class="purchase-order-lines" id="purchase-order-lines">
+          <tbody>
+            <tr>
+              <td>artist</td>
+              <td>album</td>
+              <td>quantity</td>
+              <td>total</td>
+            </tr>
+            <tr></tr>
+          </tbody>
+        </table>
+        <!-- <div class="action-group">
+          <button type="submit">Submit</button>
+        </div> -->
+      </fieldset>
+    </form>
   </body>
 </html>

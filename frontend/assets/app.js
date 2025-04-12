@@ -225,7 +225,7 @@ const renderAdminView = async () => {
   }
 };
 
-const renderPurchaseForm = () => {
+const renderPurchaseForm = async () => {
   const {
     location: { search },
   } = window;
@@ -233,6 +233,18 @@ const renderPurchaseForm = () => {
   const action = url.get("action");
   checkAndRedirect([action], "?action=new");
   const h1 = document.getElementById("manange-stock-title");
+  const response = await fetch("/api/admin/artists");
+  const { artists } = await response.json();
+
+  const artistSelect = document.querySelector("[name=artist_id]");
+  artists.forEach((artist) => {
+    const { name, artist_id } = artist;
+    const newOption = element("option");
+    newOption.innerHTML = name;
+    newOption.value = artist_id;
+    artistSelect.appendChild(newOption);
+  });
+
   switch (action) {
     case "edit":
       h1.innerHTML = `Edit purchase order`;

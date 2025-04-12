@@ -96,6 +96,18 @@ select {
   width: 80%;
 }
 
+.purchase-order-lines {
+  width: 100%;
+  border: 1px solid white;
+}
+
+.purchase-order-lines > tbody > tr > td > input {
+  vertical-align: middle;
+  text-align: center;
+  border: 1px solid white;
+  background-color: grey;
+}
+
 .dispatched-table {
   width: 100%;
   border: 1px solid white;
@@ -189,8 +201,8 @@ button.sample-btn {
 }
 
 i {
-  padding-top: 10px;
-  padding-bottom: 10px;
+  display: block;
+
 }
 
 button {

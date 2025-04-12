@@ -16,7 +16,7 @@
     </div>
     <hr />
     <h1 id="manange-stock-title"></h1>
-    <form onsubmit="sendArtist(event)">
+    <form onsubmit="addLine(event)">
       <fieldset>
         <hr />
         <p>details:</p>
@@ -30,28 +30,41 @@
         </div>
         <div class="form-field">
           <label for="stock">current stock:</label>
-          <input type="number" name="stock" readonly />
+          <input
+            type="number"
+            name="stock"
+            readonly
+            style="background-color: grey"
+          />
         </div>
         <div class="form-field">
-          <label for="price">price:</label>
-          <input type="number" name="price" readonly />
+          <label for="price">retail price:</label>
+          <input
+            type="number"
+            name="price"
+            readonly
+            style="background-color: grey"
+          />
         </div>
-        <hr />
-        <table class="purchase-order-lines" id="purchase-order-lines">
-          <tbody>
-            <tr>
-              <td>artist</td>
-              <td>album</td>
-              <td>quantity</td>
-              <td>total</td>
-            </tr>
-            <tr></tr>
-          </tbody>
-        </table>
-        <!-- <div class="action-group">
-          <button type="submit">Submit</button>
-        </div> -->
+        <br />
+        <i>stock order rules:</i>
+        <i>1-5 albums, 70% of retail price *</i>
+        <i>5+ albums, 60% of retail price **</i>
+        <button type="submit">Add to order line</button>
       </fieldset>
     </form>
+    <hr />
+    <table class="purchase-order-lines">
+      <tbody id="purchase-order-lines">
+        <tr>
+          <td>artist id</td>
+          <td>artist</td>
+          <td>album id</td>
+          <td>album</td>
+          <td>quantity</td>
+          <td>total</td>
+        </tr>
+      </tbody>
+    </table>
   </body>
 </html>

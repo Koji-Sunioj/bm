@@ -278,35 +278,88 @@ const renderPurchaseForm = async () => {
 };
 
 const changeAlbum = async (event) => {
-  const albumTitle = event.target.options[event.target.selectedIndex].text;
+  const fieldSet = document.querySelector("fieldset");
+  fieldSet.disabled = true;
+
+  const albumTitle = toUrlCase(
+    event.target.options[event.target.selectedIndex].text
+  );
+  const artistId = document.querySelector("[name=artist_id]").value;
+  const response = await fetch(`/api/artists/${artistId}/album/${albumTitle}`);
+  const {
+    album: { price, stock },
+  } = await response.json();
+
+  document.querySelector("[name=stock]").value = stock;
+  document.querySelector("[name=price]").value = price;
+  fieldSet.disabled = false;
 };
 
 const changeAlbums = async (event) => {
-  const albumsUrl = `/api/artists/${event.target.value}?view=user`;
-  response = await fetch(albumsUrl);
-  const {
-    artist: { albums },
-  } = await response.json();
-
+  const fieldSet = document.querySelector("fieldset");
+  fieldSet.disabled = true;
   const albumSelect = document.querySelector("[name=album_id]");
-  albumSelect.childNodes.forEach((node) => {
+  Array.from(albumSelect.children).forEach((node) => {
     node.remove();
   });
 
-  albums.forEach((album) => {
-    const { album_id, title } = album;
-    const newOption = element("option");
-    newOption.innerHTML = title;
-    newOption.value = album_id;
-    albumSelect.appendChild(newOption);
+  if (albumSelect.childNodes.length === 0) {
+    const albumsUrl = `/api/artists/${event.target.value}?view=user`;
+    const response = await fetch(albumsUrl);
+    const {
+      artist: { albums },
+    } = await response.json();
+
+    albums.forEach((album) => {
+      const { album_id, title } = album;
+      const newOption = element("option");
+      newOption.innerHTML = title;
+      newOption.value = album_id;
+      albumSelect.appendChild(newOption);
+    });
+
+    const firstAlbum = albums.find(
+      (album) => album.album_id === Number(albumSelect.value)
+    );
+
+    document.querySelector("[name=stock]").value = firstAlbum.stock;
+    document.querySelector("[name=price]").value = firstAlbum.price;
+    fieldSet.disabled = false;
+  }
+};
+
+const addLine = (event) => {
+  event.preventDefault();
+  const [artistSelect, albumSelect] = [
+    document.querySelector("[name=artist_id]"),
+    document.querySelector("[name=album_id]"),
+  ];
+  const artistText = artistSelect.options[artistSelect.selectedIndex].text;
+  const artistId = artistSelect.value;
+  const albumText = albumSelect.options[albumSelect.selectedIndex].text;
+  const albumId = albumSelect.value;
+
+  const price = document.querySelector("[name=price]").value;
+
+  const newRow = element("tr");
+
+  [
+    artistId,
+    artistText,
+    albumId,
+    albumText,
+    1,
+    (price * 0.7).toFixed(2),
+  ].forEach((value) => {
+    const [newCell, newInput] = elements(["td", "input"]);
+    newInput.value = value;
+    newInput.setAttribute("readonly", "true");
+    newCell.appendChild(newInput);
+
+    newRow.appendChild(newCell);
   });
 
-  const firstAlbum = albums.find(
-    (album) => album.album_id === Number(albumSelect.value)
-  );
-
-  document.querySelector("[name=stock]").value = firstAlbum.stock;
-  document.querySelector("[name=price]").value = firstAlbum.price;
+  document.getElementById("purchase-order-lines").appendChild(newRow);
 };
 
 const renderPages = (pages, sort, direction, searchParam, view = null) => {

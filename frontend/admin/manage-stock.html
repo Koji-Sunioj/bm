@@ -19,7 +19,7 @@
     <form onsubmit="addLine(event)">
       <fieldset>
         <hr />
-        <p>details:</p>
+        <p>album details:</p>
         <div class="form-field">
           <label for="name">artist:</label>
           <select name="artist_id" onchange="changeAlbums(event)"></select>
@@ -50,21 +50,40 @@
         <i>stock order rules:</i>
         <i>1-5 albums, 70% of retail price *</i>
         <i>5+ albums, 60% of retail price **</i>
-        <button type="submit">Add to order line</button>
+        <i
+          >10 albums in purchase order and stock is max, due to warehouse size
+          ***</i
+        >
+        <button type="submit" class="disabled-button" id="add-button">
+          Increment order line
+        </button>
+        <button
+          type="button"
+          class="disabled-button"
+          id="delete-button"
+          onclick="deleteLine()"
+        >
+          Decrement order line
+        </button>
       </fieldset>
     </form>
     <hr />
-    <table class="purchase-order-lines">
-      <tbody id="purchase-order-lines">
-        <tr>
-          <td>artist id</td>
-          <td>artist</td>
-          <td>album id</td>
-          <td>album</td>
-          <td>quantity</td>
-          <td>total</td>
-        </tr>
-      </tbody>
-    </table>
+    <p>purchase order:</p>
+    <form>
+      <fieldset>
+        <table class="purchase-order-lines">
+          <tbody id="purchase-order-lines">
+            <tr>
+              <td>artist id</td>
+              <td>artist</td>
+              <td>album id</td>
+              <td>album</td>
+              <td>quantity</td>
+              <td>total</td>
+            </tr>
+          </tbody>
+        </table>
+      </fieldset>
+    </form>
   </body>
 </html>

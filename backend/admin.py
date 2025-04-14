@@ -229,9 +229,11 @@ async def admin_get_artists(page: int = None, sort: str = None, direction: str =
     return JSONResponse(response, 200)
 
 
-@admin.get("/albums")
+@admin.post("/purchase-orders")
 @db_functions.tsql
-async def admin_get_artists():
+async def send_purchase_order(request: Request):
+    form = await request.form()
+    print(form)
     response = {}
     command = "select album_id,title from albums"
     # response["albums"] = cursor.fetchone()["artists"]

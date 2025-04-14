@@ -96,17 +96,7 @@ select {
   width: 80%;
 }
 
-.purchase-order-lines {
-  width: 100%;
-  border: 1px solid white;
-}
 
-.purchase-order-lines > tbody > tr > td > input {
-  vertical-align: middle;
-  text-align: center;
-  border: 1px solid white;
-  background-color: grey;
-}
 
 .dispatched-table {
   width: 100%;
@@ -409,4 +399,38 @@ select::-ms-expand {
     text-align: left;
     text-overflow: clip;
   }
+}
+
+.purchase-order-lines {
+  width: 100%;
+ }
+
+.purchase-order-lines > tbody > tr:nth-child(1) > td  {
+  border: 1px solid white; 
+  vertical-align: top;
+  text-align: center;
+}
+
+.purchase-order-lines > tbody > tr:not(:nth-child(1)) > td  {
+  border: 1px solid white;
+  background-color: grey;
+}
+
+.purchase-order-lines > tbody > tr > td > input  {
+  vertical-align: top;
+  text-align: center;
+  border-bottom: 0px;
+  width: 100%;
+}
+
+.purchase-order-lines > tbody > tr > td:is(:nth-child(1), :nth-child(3), :nth-child(5), :nth-child(6)) {
+  width: 10vw;
+}
+
+.purchase-order-lines > tbody > tr > td:is(:nth-child(1), :nth-child(3), :nth-child(5), :nth-child(6)) > input {
+  width: 10vw;
+}
+
+.purchase-order-lines > tbody > tr > td:nth-child(2) {
+  width: 20vw;
 }

@@ -14,8 +14,7 @@ admin = APIRouter(prefix="/api/admin",
 @db_functions.tsql
 async def delete_album(album_id):
     detail = "there was nothing to delete"
-    cursor.callproc(
-        "get_album", ("album_id", None, album_id))
+    cursor.callproc("get_album", (album_id,))
     album = cursor.fetchone()["album"]
     del_command = "delete from albums where album_id = %s"
     cursor.execute(del_command, (album_id,))
@@ -104,6 +103,8 @@ async def manage_album(request: Request):
     filename = bm_format_photoname(
         artist["name"], form["title"], form["photo"].filename)
 
+    print(filename)
+
     match request.method:
 
         case "POST":
@@ -122,12 +123,11 @@ async def manage_album(request: Request):
             cursor.callproc("insert_songs", (* inserted_matrix,))
 
             response.update(
-                {"title": inserted["title"], "artist_id": inserted["artist_id"]})
+                {"title": inserted["title"], "album_id": inserted["album_id"]})
             response["detail"] = "album %s created" % inserted["title"]
 
         case "PATCH":
-            cursor.callproc(
-                "get_album", ("album_id", None, form['album_id']))
+            cursor.callproc("get_album", (form['album_id'],))
 
             data = cursor.fetchone()
             album, songs = data["album"], data["songs"]
@@ -198,9 +198,6 @@ async def manage_album(request: Request):
             if any([should_del_tracks, should_add_tracks, should_update_tracks, should_update_album, photo_not_same]):
                 cursor.callproc("update_modified", (form["album_id"],))
                 updated_album = cursor.fetchone()
-                response.update(
-                    {"title": updated_album["title"], "artist_id": updated_album["artist_id"]})
-
                 response["detail"] = "album %s updated" % updated_album["title"]
             else:
                 response["detail"] = "there was nothing to update"

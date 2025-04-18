@@ -120,7 +120,7 @@ select {
 }
 
 .dispatched-table > tbody > tr > td:nth-child(2) {
-  width: 40vw;
+  width: 30vw;
 }
 
 .dispatched-table > tbody> tr > td:nth-child(3) {
@@ -128,7 +128,7 @@ select {
 }
 
 .dispatched-table > tbody > tr > td:nth-child(4) {
-  width: 10vw;
+  width: 5vw;
 }
 
 .album-p {

@@ -43,7 +43,7 @@ const showSearchBar = (fallBack, params) => {
 const putTableHeaders = (headers, header, tableBody) => {
   headers.forEach((value) => {
     const newHeader = element("td");
-    newHeader.innerText = value;
+    newHeader.innerText = value.split("_")[0];
     header.appendChild(newHeader);
   });
   tableBody.appendChild(header);
@@ -153,29 +153,54 @@ const renderAdminView = async () => {
         const apiUrl = `/api/albums?page=${page}&sort=${sort}&direction=${direction}${searchParam}`;
         const response = await fetch(apiUrl);
         const { albums, pages } = await response.json();
+        const headers = [
+          "photo",
+          "title",
+          "name",
+          "stock",
+          "release_year",
+          "price",
+          "modified",
+        ];
 
         const [table, tableBody, header] = elements(["table", "tbody", "tr"]);
-        putTableHeaders(
-          [
-            "photo",
-            "title",
-            "name",
-            "stock",
-            "release year",
-            "price",
-            "modified",
-          ],
-          header,
-          tableBody
-        );
+        putTableHeaders(headers, header, tableBody);
         table.classList.add("dispatched-table");
 
         albums.forEach((album) => {
-          const albumCopy = { ...album };
-          delete albumCopy.artist_id;
-
           const newRow = element("tr");
-          Object.keys(albumCopy).forEach((key) => {
+
+          headers.forEach((header) => {
+            const newCell = element("td");
+            switch (header) {
+              case "photo":
+                const image = element("img");
+                image.src = `/common/${album[header]}`;
+                image.classList.add("table-img");
+                newCell.appendChild(image);
+                break;
+              case "title":
+                const editLink = element("a");
+                editLink.setAttribute(
+                  "href",
+                  `manage-album?action=edit&album_id=${album["album_id"]}`
+                );
+                editLink.innerText = album[header];
+                newCell.appendChild(editLink);
+                break;
+              case "modified":
+                const utcDate = new Date(`${album[header]} UTC`);
+                newCell.innerText = utcToLocale(utcDate);
+                break;
+              default:
+                newCell.innerText = album[header];
+                break;
+            }
+
+            newRow.appendChild(newCell);
+          });
+          /* Object.keys(albumCopy).forEach((key) => {
+            console.log(key);
             const newCell = element("td");
             switch (key) {
               case "photo":
@@ -199,13 +224,15 @@ const renderAdminView = async () => {
                 const utcDate = new Date(`${album[key]} UTC`);
                 newCell.innerText = utcToLocale(utcDate);
                 break;
+              case "album_id":
+                break;
               default:
                 newCell.innerText = album[key];
                 break;
             }
 
             newRow.appendChild(newCell);
-          });
+          }); */
           tableBody.appendChild(newRow);
         });
         table.appendChild(tableBody);
@@ -628,15 +655,24 @@ const sendAlbum = async (event) => {
     body: currentForm,
   });
   const { status } = response;
-  const { detail, artist_id, title } = await response.json();
+  const { detail, title, album_id } = await response.json();
+
+  console.log(album_id);
   fieldSet.disabled = false;
 
   alert(detail);
+  console.log(status, method);
 
-  if (status === 200 && title !== undefined && artist_id !== undefined) {
-    window.location.search = `?action=edit&album=${toUrlCase(
-      title
-    )}&artist_id=${artist_id}`;
+  if (status === 200) {
+    switch (method) {
+      case "PATCH":
+        window.location.reload();
+        break;
+      case "POST":
+        window.location.search = `?action=edit&album_id=${album_id}`;
+        console.log(album_id);
+        break;
+    }
   }
 };
 
@@ -671,15 +707,14 @@ const renderAlbumForm = async () => {
 
   switch (action) {
     case "edit":
-      const albumParam = url.get("album");
-      const artistID = url.get("artist_id");
-      checkAndRedirect([albumParam, artistID], "?action=new");
+      const albumId = url.get("album_id");
+      checkAndRedirect([albumId], "?action=new");
       const {
         album: { name, photo, title, artist_id, album_id },
         album,
         songs,
-      } = await fetch(`/api/artists/${artistID}/album/${albumParam}`).then(
-        (response) => response.json()
+      } = await fetch(`/api/albums/${albumId}`).then((response) =>
+        response.json()
       );
 
       h1.innerText = `Edit ${title} by ${name}`;
@@ -1082,6 +1117,8 @@ const renderAlbums = async () => {
     response.json()
   );
 
+  console.log(albums);
+
   renderAlbumTiles(albums);
 
   renderPages(pages, sort, direction, searchParam);
@@ -1092,12 +1129,10 @@ const renderAlbum = async () => {
     location: { pathname },
   } = window;
 
-  const noSpaces = pathname.replace(/%20/g, " ");
-  const album_title = noSpaces.match(/(?<=album\/).*/)[0];
-  const artist_id = noSpaces.match(/(?<=artist\/)\d+(?=\/.*\/album)/)[0];
+  const album_id = pathname.match(/\/artist\/.*\/album\/(\d.*)/)[1];
 
   const response = await fetch(
-    `/api/artists/${artist_id}/album/${album_title}?cart=get&previews=true`
+    `/api/albums/${album_id}?cart=get&previews=true`
   );
   const { album, songs, cart } = await response.json();
 
@@ -1300,7 +1335,7 @@ const createElements = (tags) => {
 const renderAlbumTiles = (albums) => {
   const albumsDiv = document.getElementById("albums");
   albums.forEach((album) => {
-    const { title, name, photo, artist_id } = album;
+    const { title, name, photo, artist_id, album_id } = album;
 
     const [targetDiv, anchor, image] = elements(["div", "a", "img"]);
 
@@ -1315,9 +1350,7 @@ const renderAlbumTiles = (albums) => {
       });
 
     targetDiv.classList.add("albums-div");
-    const albumUri = `/artist/${artist_id}/${toUrlCase(name)}/album/${toUrlCase(
-      title
-    )}`;
+    const albumUri = `/artist/${artist_id}/album/${album_id}`;
     anchor.setAttribute("href", albumUri);
     anchor.innerText = `${name} - ${title}`;
     image.src = `/common/${photo}`;

@@ -1,25 +1,14 @@
-create function get_album(in id_type varchar, in album_name varchar,in identifier int,out album json, out songs json) 
+create function get_album(in album_id int,out album json, out songs json) 
 returns setof record as 
 $$
-begin
-    case id_type
-        when 'album_id' then
-            return query select json_build_object('album_id',albums.album_id,'artist_id',artists.artist_id,'name',name,
-            'title', title, 'release_year',release_year,'photo', photo,'stock',stock,'price',price::float) as album,
-            json_agg(json_build_object('track',track,'song',song,'duration',duration) order by track)  as songs
-            from albums join artists on artists.artist_id = albums.artist_id
-            join songs on songs.album_id = albums.album_id 
-            where albums.album_id = $3 
-            group by albums.album_id,artists.artist_id,name;
-        when 'artist_id' then
-            return query select json_build_object('album_id',albums.album_id,'artist_id',artists.artist_id,'name',name,
-            'title', title, 'release_year',release_year,'photo', photo,'stock',stock,'price',price::float) as album,
-            json_agg(json_build_object('track',track,'song',song,'duration',duration) order by track)  as songs
-            from albums join artists on artists.artist_id = albums.artist_id
-            join songs on songs.album_id = albums.album_id 
-            where artists.artist_id = $3 and lower(title) = $2 
-            group by albums.album_id,artists.artist_id,name;
-    end case;
+begin   
+        return query select json_build_object('album_id',albums.album_id,'artist_id',artists.artist_id,'name',name,
+        'title', title, 'release_year',release_year,'photo', photo,'stock',stock,'price',price::float) as album,
+        json_agg(json_build_object('track',track,'song',song,'duration',duration) order by track)  as songs
+        from albums join artists on artists.artist_id = albums.artist_id
+        join songs on songs.album_id = albums.album_id 
+        where albums.album_id = $1 
+        group by albums.album_id,artists.artist_id,name;
 end
 $$ language plpgsql;
 
@@ -176,9 +165,10 @@ $$ language plpgsql;
 create function get_albums(in page int,in sort varchar,in direction varchar,in query varchar default null)
 returns table (
     artist_id smallint,
-    photo varchar,
-    title varchar,
     name varchar, 
+    album_id integer,
+    title varchar,
+    photo varchar,
 	stock smallint, 
     release_year smallint, 
     price double precision,
@@ -190,8 +180,8 @@ new_offset smallint := ($1 - 1) * 8;
 new_query varchar := ' where lower(name) like lower(''%' || $4 || '%'') or lower(title) like lower(''%' || $4 || '%'')';
 begin  
     return query execute '
-    select albums.artist_id,albums.photo,albums.title,artists.name,albums.stock,
-    albums.release_year,albums.price::float, albums.modified::varchar
+    select albums.artist_id,artists.name,albums.album_id,albums.title,albums.photo,
+    albums.stock,albums.release_year,albums.price::float, albums.modified::varchar
     from albums
     join artists on artists.artist_id = albums.artist_id'
     || case when $4 is not null then new_query else ' ' end || 
@@ -305,22 +295,22 @@ $$
     where sub.album_id = albums.album_id returning albums.stock as remaining, sub.quantity as cart;
 $$ language sql;
 
-create function update_modified(in album_id int,out artist_id int,out title varchar) as
+create function update_modified(in album_id int,out title varchar) as
 $$  
     with updated as (
     update albums set modified = now() at time zone 'utc'
     where album_id = $1 returning *)
-    select artists.artist_id,title from updated join artists on artists.artist_id = updated.artist_id;
+    select title from updated join artists on artists.artist_id = updated.artist_id;
 $$ language sql;
 
 create function insert_album(in title varchar,in release_year int,in price double precision,
-    in photo varchar,in artist_id int,out album_id int,out artist_id int,out title varchar) 
+    in photo varchar,in artist_id int,out album_id int,out title varchar) 
 as
 $$
     with inserted as 
     (insert into albums (title,release_year,price,photo,artist_id) 
     values ($1,$2,$3,$4,$5) returning *) 
-    select album_id,artists.artist_id,title
+    select album_id,title
     from inserted join artists on artists.artist_id = inserted.artist_id;
 $$ language sql;
 

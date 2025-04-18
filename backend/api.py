@@ -25,14 +25,11 @@ async def get_artist(artist_id, view: str):
     return JSONResponse(artist, 200)
 
 
-@api.get("/artists/{artist_id}/album/{album_name}")
+@api.get("/albums/{album_id}")
 @db_functions.tsql
-async def get_album(artist_id, album_name, request: Request, cart: str = None, previews: str = None):
-
-    album_name = re.sub("\-", " ", album_name)
-    cursor.callproc("get_album", ("artist_id", album_name, artist_id))
+async def get_album(album_id, request: Request, cart: str = None, previews: str = None):
+    cursor.callproc("get_album", (album_id,))
     album = cursor.fetchone()
-
     parsed_album = parse_samples(album) if previews == "true" else album
 
     try:

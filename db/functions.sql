@@ -346,5 +346,3 @@ begin
 	execute 'update albums set '||array_to_string(sets, ',')||' where album_id='||$1||';';
 end
 $$ language plpgsql;
-
---asd

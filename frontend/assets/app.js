@@ -627,22 +627,17 @@ const renderArtistForm = async () => {
   }
 };
 
-const urlActionMethod = () => {
-  const {
-    location: { search },
-  } = window;
-  const url = new URLSearchParams(search);
-  const method = { edit: "PATCH", new: "POST" }[url.get("action")];
-  return method;
-};
-
 const sendAlbum = async (event) => {
   event.preventDefault();
   const fieldSet = document.querySelector("fieldset");
   const currentForm = new FormData(event.target);
   fieldSet.disabled = true;
 
-  const method = urlActionMethod();
+  const {
+    location: { search },
+  } = window;
+  const url = new URLSearchParams(search);
+  const method = { edit: "PATCH", new: "POST" }[url.get("action")];
 
   for (var pair of currentForm.entries()) {
     if (typeof pair[1] === "string") {
@@ -657,11 +652,9 @@ const sendAlbum = async (event) => {
   const { status } = response;
   const { detail, title, album_id } = await response.json();
 
-  console.log(album_id);
   fieldSet.disabled = false;
 
   alert(detail);
-  console.log(status, method);
 
   if (status === 200) {
     switch (method) {
@@ -1160,10 +1153,7 @@ const renderAlbum = async () => {
           break;
         case "name":
           paragraph.innerText = `${text}: `;
-          artistA.setAttribute(
-            "href",
-            `/artist/${album["artist_id"]}/${toUrlCase(album[info])}`
-          );
+          artistA.setAttribute("href", `/artist/${album["artist_id"]}`);
           artistA.innerText = album[info];
           paragraph.appendChild(artistA);
           break;

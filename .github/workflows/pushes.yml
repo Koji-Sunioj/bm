@@ -6,7 +6,6 @@ on:
       - .github/workflows/**
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   deploy:

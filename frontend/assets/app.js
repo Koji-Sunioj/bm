@@ -199,40 +199,7 @@ const renderAdminView = async () => {
 
             newRow.appendChild(newCell);
           });
-          /* Object.keys(albumCopy).forEach((key) => {
-            console.log(key);
-            const newCell = element("td");
-            switch (key) {
-              case "photo":
-                const image = element("img");
-                image.src = `/common/${album[key]}`;
-                image.classList.add("table-img");
-                newCell.appendChild(image);
-                break;
-              case "title":
-                const editLink = element("a");
-                editLink.setAttribute(
-                  "href",
-                  `manage-album?action=edit&album=${toUrlCase(
-                    album[key]
-                  )}&artist_id=${album["artist_id"]}`
-                );
-                editLink.innerText = album[key];
-                newCell.appendChild(editLink);
-                break;
-              case "modified":
-                const utcDate = new Date(`${album[key]} UTC`);
-                newCell.innerText = utcToLocale(utcDate);
-                break;
-              case "album_id":
-                break;
-              default:
-                newCell.innerText = album[key];
-                break;
-            }
 
-            newRow.appendChild(newCell);
-          }); */
           tableBody.appendChild(newRow);
         });
         table.appendChild(tableBody);
@@ -419,11 +386,8 @@ const changeAlbum = async (event) => {
   const fieldSet = document.querySelector("fieldset");
   fieldSet.disabled = true;
 
-  const albumTitle = toUrlCase(
-    event.target.options[event.target.selectedIndex].text
-  );
-  const artistId = document.querySelector("[name=artist_id]").value;
-  const response = await fetch(`/api/artists/${artistId}/album/${albumTitle}`);
+  const albumId = document.querySelector("[name=album_id]").value;
+  const response = await fetch(`/api/albums/${albumId}`);
   const {
     album: { price, stock },
   } = await response.json();

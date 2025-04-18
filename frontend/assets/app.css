@@ -424,13 +424,13 @@ select::-ms-expand {
 }
 
 .purchase-order-lines > tbody > tr > td:is(:nth-child(1), :nth-child(3), :nth-child(5), :nth-child(6)) {
-  width: 10vw;
+  width: 8vw;
 }
 
 .purchase-order-lines > tbody > tr > td:is(:nth-child(1), :nth-child(3), :nth-child(5), :nth-child(6)) > input {
-  width: 10vw;
+  width: 8vw;
 }
 
 .purchase-order-lines > tbody > tr > td:nth-child(2) {
-  width: 20vw;
+  width: 15vw;
 }

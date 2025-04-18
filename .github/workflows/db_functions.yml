@@ -1,11 +1,6 @@
 name: update db functions
 
 on:
-  #push:
-  #  branches:
-  #    - main
-  #  paths:
-  #    - db/functions.sql
   workflow_dispatch:
 
 jobs:

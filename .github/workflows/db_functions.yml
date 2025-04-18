@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - db/functions.sql
+  workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

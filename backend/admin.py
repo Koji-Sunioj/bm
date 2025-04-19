@@ -103,8 +103,6 @@ async def manage_album(request: Request):
     filename = bm_format_photoname(
         artist["name"], form["title"], form["photo"].filename)
 
-    print(filename)
-
     match request.method:
 
         case "POST":
@@ -230,9 +228,20 @@ async def admin_get_artists(page: int = None, sort: str = None, direction: str =
 @db_functions.tsql
 async def send_purchase_order(request: Request):
     form = await request.form()
-    print(form)
-    response = {}
-    command = "select album_id,title from albums"
+    po_rows = form_po_rows_to_list(form)
+    print(po_rows)
+
+    db_keys = ["album_id", "quantity", "row_total"]
+    db_rows = []
+
+    for row in po_rows:
+        db_row = {key: row[key] for key in db_keys}
+        db_rows.append(db_row)
+
+    print(db_rows)
+
+    response = {"detail": "asd"}
+    # command = "select album_id,title from albums"
     # response["albums"] = cursor.fetchone()["artists"]
     return JSONResponse(response, 200)
 

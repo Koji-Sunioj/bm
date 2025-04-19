@@ -69,7 +69,7 @@
     </form>
     <hr />
     <p>purchase order:</p>
-    <form>
+    <form onsubmit="sendOrder(event)">
       <fieldset>
         <table class="purchase-order-lines">
           <tbody id="purchase-order-lines">
@@ -85,6 +85,9 @@
             </tr>
           </tbody>
         </table>
+        <button type="submit" class="disabled-button" id="po-button">
+          Send purchase order
+        </button>
       </fieldset>
     </form>
   </body>

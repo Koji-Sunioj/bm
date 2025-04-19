@@ -219,6 +219,18 @@ const renderAdminView = async () => {
   }
 };
 
+const sendOrder = async (event) => {
+  event.preventDefault();
+  const currentForm = new FormData(event.target);
+
+  const request = await fetch("/api/admin/purchase-orders", {
+    method: "POST",
+    body: currentForm,
+  });
+
+  console.log(request.status);
+};
+
 const reOrderLines = () => {
   const rows = document.getElementById("purchase-order-lines").children;
   const nLines = rows.length;
@@ -226,8 +238,8 @@ const reOrderLines = () => {
   for (let index = 1; index < nLines; index++) {
     Array.from(rows[index].children).forEach((cell) => {
       const inputName = cell.firstChild.name;
-      cell.firstChild.name =
-        inputName.substring(0, inputName.length - 1) + String(index);
+      const pos = inputName.lastIndexOf("_");
+      cell.firstChild.name = inputName.substring(0, pos + 1) + String(index);
     });
   }
 };
@@ -265,6 +277,8 @@ const handleAddDelButtons = () => {
   const rows = document.getElementById("purchase-order-lines").children;
   const nLines = rows.length;
 
+  console.log(nLines);
+
   for (let index = 1; index < nLines; index++) {
     const rowAlbumID = document.querySelector(`[name=album_id_${index}]`).value;
     const rowStock = document.querySelector(`[name=quantity_${index}]`).value;
@@ -288,6 +302,12 @@ const handleAddDelButtons = () => {
     deleteButton.classList.remove("disabled-button");
   } else {
     deleteButton.classList.add("disabled-button");
+  }
+
+  if (nLines > 1) {
+    document.getElementById("po-button").classList.remove("disabled-button");
+  } else {
+    document.getElementById("po-button").classList.add("disabled-button");
   }
 };
 

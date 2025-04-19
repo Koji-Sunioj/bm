@@ -62,6 +62,26 @@ def dict_list_to_matrix(dict_list):
     return reshaped
 
 
+def form_po_rows_to_list(form):
+    po_row_pattern = r"(?!artist_id|name|album_id|title|quantity|line_total)(?!_)\d"
+    indexes = [int(re.search(po_row_pattern, key).group())
+               for key in form.keys()]
+    row_indexes = list(set(indexes))
+    rows = []
+
+    for form_row in row_indexes:
+        new_row = {
+            "artist_id": int(form[f"artist_id_{form_row}"]),
+            "artist":  form[f"name_{form_row}"],
+            "album_id": int(form[f"album_id_{form_row}"]),
+            "album": form[f"title_{form_row}"],
+            "quantity": int(form[f"quantity_{form_row}"]),
+            "row_total": float(form[f"line_total_{form_row}"])
+        }
+        rows.append(new_row)
+    return rows
+
+
 def form_songs_to_list(form, new_album_id=None):
     song_pattern = r"^(?:track|duration|song)_[0-9]{1,2}$"
     indexes = [int(key.split("_")[1])

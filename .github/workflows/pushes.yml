@@ -35,7 +35,7 @@ jobs:
     needs: deploy
     runs-on: ubuntu-latest
     outputs:
-      updatedb_schema: ${{ steps.checksql.outputs.updated_schema }}
+      updatedb_schema: ${{ steps.checksql.outputs.updatedb_schema }}
       updatedb_functions: ${{ steps.checksql.outputs.updatedb_functions }}
     steps:
       - uses: actions/checkout@v3

@@ -165,6 +165,10 @@ table "purchase_order_lines" {
     null = false
     type = smallint
   }
+  column "album_id" {
+    null = true
+    type = integer
+  }
   column "quantity" {
     null = true
     type = smallint
@@ -179,6 +183,12 @@ table "purchase_order_lines" {
   }
   primary_key {
     columns = [column.line, column.purchase_order]
+  }
+  foreign_key "purchase_order_lines_album_id_fkey" {
+    columns     = [column.album_id]
+    ref_columns = [table.albums.column.album_id]
+    on_update   = NO_ACTION
+    on_delete   = NO_ACTION
   }
   foreign_key "purchase_order_lines_purchase_order_fkey" {
     columns     = [column.purchase_order]

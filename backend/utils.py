@@ -62,7 +62,7 @@ def dict_list_to_matrix(dict_list):
     return reshaped
 
 
-def form_po_rows_to_list(form):
+def form_po_rows_to_list(form, purchase_order):
     po_row_pattern = r"(?!artist_id|name|album_id|title|quantity|line_total)(?!_)\d"
     indexes = [int(re.search(po_row_pattern, key).group())
                for key in form.keys()]
@@ -74,12 +74,13 @@ def form_po_rows_to_list(form):
     for line in row_indexes:
         new_row = {
             "line": line,
+            "purchase_order": purchase_order,
             "artist_id": int(form[f"artist_id_{line}"]),
             "artist":  form[f"name_{line}"],
             "album_id": int(form[f"album_id_{line}"]),
             "album": form[f"title_{line}"],
             "quantity": int(form[f"quantity_{line}"]),
-            "row_total": float(form[f"line_total_{line}"])
+            "line_total": float(form[f"line_total_{line}"])
         }
         rows.append(new_row)
     return rows

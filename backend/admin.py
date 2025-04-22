@@ -228,23 +228,34 @@ async def admin_get_artists(page: int = None, sort: str = None, direction: str =
 @db_functions.tsql
 async def send_purchase_order(request: Request):
     form = await request.form()
-    po_rows = form_po_rows_to_list(form)
 
     po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order;"
     cursor.execute(po_cmd)
+    purchase_order = cursor.fetchone()["purchase_order"]
 
-    db_keys = ["line", "album_id", "quantity", "row_total"]
+    po_rows = form_po_rows_to_list(form, purchase_order)
+
+    db_keys = ["line", "purchase_order", "album_id", "quantity", "line_total"]
     db_rows = []
 
     for row in po_rows:
         db_row = {key: row[key] for key in db_keys}
         db_rows.append(db_row)
 
-    print(db_rows)
+    inserts = "insert into purchase_order_lines (line,purchase_order,album_id,quantity,line_total) values "
 
-    response = {"detail": "asd"}
-    # command = "select album_id,title from albums"
-    # response["albums"] = cursor.fetchone()["artists"]
+    for n, line in enumerate(db_rows):
+        insert = "(%s,%s,%s,%s,%s)" % (
+            line["line"], line["purchase_order"], line["album_id"], line["quantity"], line["line_total"])
+        inserts += insert
+        if n == len(db_rows) - 1:
+            inserts += ";"
+        else:
+            inserts += ",\n"
+
+    cursor.execute(inserts)
+
+    response = {"detail": "purchase order created"}
     return JSONResponse(response, 200)
 
 

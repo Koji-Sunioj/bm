@@ -69,14 +69,17 @@ def form_po_rows_to_list(form):
     row_indexes = list(set(indexes))
     rows = []
 
-    for form_row in row_indexes:
+    row_indexes.sort()
+
+    for line in row_indexes:
         new_row = {
-            "artist_id": int(form[f"artist_id_{form_row}"]),
-            "artist":  form[f"name_{form_row}"],
-            "album_id": int(form[f"album_id_{form_row}"]),
-            "album": form[f"title_{form_row}"],
-            "quantity": int(form[f"quantity_{form_row}"]),
-            "row_total": float(form[f"line_total_{form_row}"])
+            "line_number": line,
+            "artist_id": int(form[f"artist_id_{line}"]),
+            "artist":  form[f"name_{line}"],
+            "album_id": int(form[f"album_id_{line}"]),
+            "album": form[f"title_{line}"],
+            "quantity": int(form[f"quantity_{line}"]),
+            "row_total": float(form[f"line_total_{line}"])
         }
         rows.append(new_row)
     return rows

@@ -155,6 +155,60 @@ table "orders_bridge" {
     on_delete   = CASCADE
   }
 }
+table "purchase_order_lines" {
+  schema = schema.public
+  column "line" {
+    null = false
+    type = smallint
+  }
+  column "purchase_order" {
+    null = false
+    type = smallint
+  }
+  column "quantity" {
+    null = true
+    type = smallint
+  }
+  column "confirmed_quantity" {
+    null = true
+    type = smallint
+  }
+  column "line_total" {
+    null = true
+    type = numeric(6,2)
+  }
+  primary_key {
+    columns = [column.line, column.purchase_order]
+  }
+  foreign_key "purchase_order_lines_purchase_order_fkey" {
+    columns     = [column.purchase_order]
+    ref_columns = [table.purchase_orders.column.purchase_order]
+    on_update   = NO_ACTION
+    on_delete   = NO_ACTION
+  }
+}
+table "purchase_orders" {
+  schema = schema.public
+  column "purchase_order" {
+    null = false
+    type = serial
+  }
+  column "status" {
+    null = true
+    type = character_varying
+  }
+  column "created" {
+    null    = true
+    type    = timestamp
+    default = sql("timezone('utc'::text, now())")
+  }
+  primary_key {
+    columns = [column.purchase_order]
+  }
+  check "purchase_orders_status_check" {
+    expr = "((status)::text = ANY ((ARRAY['pending-supplier'::character varying, 'pending-buyer'::character varying, 'confirmed'::character varying])::text[]))"
+  }
+}
 table "songs" {
   schema = schema.public
   column "track" {

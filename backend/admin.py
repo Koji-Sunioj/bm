@@ -229,9 +229,11 @@ async def admin_get_artists(page: int = None, sort: str = None, direction: str =
 async def send_purchase_order(request: Request):
     form = await request.form()
     po_rows = form_po_rows_to_list(form)
-    print(po_rows)
 
-    db_keys = ["album_id", "quantity", "row_total"]
+    po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order;"
+    cursor.execute(po_cmd)
+
+    db_keys = ["line", "album_id", "quantity", "row_total"]
     db_rows = []
 
     for row in po_rows:

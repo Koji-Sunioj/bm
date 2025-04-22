@@ -73,7 +73,7 @@ def form_po_rows_to_list(form):
 
     for line in row_indexes:
         new_row = {
-            "line_number": line,
+            "line": line,
             "artist_id": int(form[f"artist_id_{line}"]),
             "artist":  form[f"name_{line}"],
             "album_id": int(form[f"album_id_{line}"]),

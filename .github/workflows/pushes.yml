@@ -27,16 +27,16 @@ jobs:
           "cd /home/ubuntu/bm
           git pull
           pip install -r /home/ubuntu/bm/backend/requirements.txt -q
-          atlas schema apply -u 'postgres://postgres:${DB_PWD}@localhost:5432/blackmetal' --to file:///home/ubuntu/bm/db/atlas_schema.hcl --auto-approve
           echo $BACKEND_ENV | base64 -d > /home/ubuntu/bm/backend/.env
           sudo nginx -s reload
           lsof -t -i:8000 | xargs kill
           sudo -u ubuntu python3 -m gunicorn --worker-class uvicorn.workers.UvicornWorker --chdir /home/ubuntu/bm/backend/ --daemon main:app --error-logfile backend-error.log"
-  check-db-functions:
+  check-db:
     needs: deploy
     runs-on: ubuntu-latest
     outputs:
-      updatedb: ${{ steps.checksql.outputs.updatedb }}
+      updatedb_schema: ${{ steps.checksql.outputs.updated_schema }}
+      updatedb_functions: ${{ steps.checksql.outputs.updatedb_functions }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -50,22 +50,51 @@ jobs:
           DBFUNCUPDATED=$(git diff --name-only "$CI_COMMIT_BEFORE_SHA" "$CI_COMMIT_SHA" | grep db/functions.sql || echo "") 
           if [[ "${#DBFUNCUPDATED}" == 16 ]] 
           then
-            echo "updatedb=1" >> "$GITHUB_OUTPUT"
+            echo "updatedb_functions=1" >> "$GITHUB_OUTPUT"
+            echo "functions should be updated"
           else 
-            echo "updatedb=0" >> "$GITHUB_OUTPUT"
+            echo "updatedb_functions=0" >> "$GITHUB_OUTPUT"
           fi
-  one:
+          DBSCHEMAUPDATED=$(git diff --name-only "$CI_COMMIT_BEFORE_SHA" "$CI_COMMIT_SHA" | grep db/atlas_schema.hcl || echo "") 
+          if [[ "${#DBSCHEMAUPDATED}" == 19 ]] 
+          then
+            echo "updatedb_schema=1" >> "$GITHUB_OUTPUT"
+            echo "schema should be updated"
+          else 
+            echo "updatedb_schema=0" >> "$GITHUB_OUTPUT"
+          fi
+  update-db-schema:
     runs-on: ubuntu-latest
-    needs: check-db-functions
-    if: needs.check-db-functions.outputs.updatedb == '1'
+    needs: check-db
+    if: needs.check-db.outputs.updatedb_schema == '1'
     steps:
-      - name: update sql functions
+      - name: update sql schema
         env:
           PRIVATE_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
           HOST: ${{ secrets.EC2_HOST }}
           USER: ${{ secrets.EC2_USER }}
           DB_PWD: ${{ secrets.DB_PWD }}
         run: |
+          echo "updating schema"
+          echo "$PRIVATE_KEY" > github-ec2.pem && chmod 600 github-ec2.pem
+          ssh -o StrictHostKeyChecking=no -i github-ec2.pem ${USER}@${HOST} \
+          "cd /home/ubuntu/bm/db
+          atlas schema apply -u 'postgres://postgres:${DB_PWD}@localhost:5432/blackmetal' --to file:///home/ubuntu/bm/db/atlas_schema.hcl --auto-approve
+          psql -h localhost -d blackmetal -U postgres -tc 'grant select, insert, update, delete on all tables in schema public to bm_admin;'
+          psql -h localhost -d blackmetal -U postgres -tc 'grant usage, select on all sequences in schema public to bm_admin;'
+          "
+  update-db-functions:
+    runs-on: ubuntu-latest
+    needs: check-db
+    if: needs.check-db.outputs.updatedb_functions == '1'
+    steps:
+      - name: update sql functions
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+        run: |
+          echo "updating db functions"
           echo "$PRIVATE_KEY" > github-ec2.pem && chmod 600 github-ec2.pem
           ssh -o StrictHostKeyChecking=no -i github-ec2.pem ${USER}@${HOST} \
           "cd /home/ubuntu/bm/db

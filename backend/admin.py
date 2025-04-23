@@ -1,4 +1,6 @@
 import os
+import requests
+import datetime
 import db_functions
 from utils import *
 from db_functions import cursor
@@ -232,7 +234,6 @@ async def send_purchase_order(request: Request):
     po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order,modified;"
     cursor.execute(po_cmd)
     inserted = cursor.fetchone()
-    print(inserted)
 
     po_rows = form_po_rows_to_list(form)
 
@@ -247,10 +248,21 @@ async def send_purchase_order(request: Request):
         else:
             inserts += ",\n"
 
-    print(inserts)
-    # cursor.execute(inserts)
+    cursor.execute(inserts)
 
-    print(po_rows)
+    payload = {
+        "purchase_order_id": inserted["purchase_order"],
+        "modified": inserted["modified"].strftime("%Y-%m-%d %H:%M:%S"),
+        "data": po_rows
+    }
+
+    token = get_M2M_token()
+    headers = {"Authorization": token}
+
+    something = requests.post(dotenv_values(
+        ".env")["M2M_SERVER"]+"/purchase-orders", json=payload, headers=headers)
+    print(something.json())
+    print(something.status_code)
 
     response = {"detail": "purchase order created"}
     return JSONResponse(response, 200)

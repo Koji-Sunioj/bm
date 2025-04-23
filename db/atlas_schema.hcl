@@ -207,7 +207,7 @@ table "purchase_orders" {
     null = true
     type = character_varying
   }
-  column "created" {
+  column "modified" {
     null    = true
     type    = timestamp
     default = sql("timezone('utc'::text, now())")

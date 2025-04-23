@@ -229,31 +229,28 @@ async def admin_get_artists(page: int = None, sort: str = None, direction: str =
 async def send_purchase_order(request: Request):
     form = await request.form()
 
-    po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order;"
+    po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order,modified;"
     cursor.execute(po_cmd)
-    purchase_order = cursor.fetchone()["purchase_order"]
+    inserted = cursor.fetchone()
+    print(inserted)
 
-    po_rows = form_po_rows_to_list(form, purchase_order)
-
-    db_keys = ["line", "purchase_order", "album_id", "quantity", "line_total"]
-    db_rows = []
-
-    for row in po_rows:
-        db_row = {key: row[key] for key in db_keys}
-        db_rows.append(db_row)
+    po_rows = form_po_rows_to_list(form)
 
     inserts = "insert into purchase_order_lines (line,purchase_order,album_id,quantity,line_total) values "
 
-    for n, line in enumerate(db_rows):
+    for n, line in enumerate(po_rows):
         insert = "(%s,%s,%s,%s,%s)" % (
-            line["line"], line["purchase_order"], line["album_id"], line["quantity"], line["line_total"])
+            line["line"], inserted["purchase_order"], line["album_id"], line["quantity"], line["line_total"])
         inserts += insert
-        if n == len(db_rows) - 1:
+        if n == len(po_rows) - 1:
             inserts += ";"
         else:
             inserts += ",\n"
 
-    cursor.execute(inserts)
+    print(inserts)
+    # cursor.execute(inserts)
+
+    print(po_rows)
 
     response = {"detail": "purchase order created"}
     return JSONResponse(response, 200)

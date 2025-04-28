@@ -43,7 +43,7 @@ const showSearchBar = (fallBack, params) => {
 const putTableHeaders = (headers, header, tableBody) => {
   headers.forEach((value) => {
     const newHeader = element("td");
-    newHeader.innerText = value.split("_")[0];
+    newHeader.innerText = value.replace("_", " ");
     header.appendChild(newHeader);
   });
   tableBody.appendChild(header);
@@ -208,12 +208,54 @@ const renderAdminView = async () => {
         renderPages(pages, sort, direction, searchParam, "albums");
       }
       break;
-    case "admin":
+    case "purchase-orders":
       {
-        const stockOrdersLink = element("p");
-        stockOrdersLink.innerText = "Manage stock requests";
+        const apiUrl = `/api/admin/purchase-orders`;
+        const { purchase_orders } = await fetch(apiUrl).then((response) =>
+          response.json()
+        );
 
-        viewDiv.appendChild(stockOrdersLink);
+        const headers = ["purchase_order", "modified", "status", "albums"];
+
+        const [table, tableBody, header, lineBr] = elements([
+          "table",
+          "tbody",
+          "tr",
+          "br",
+        ]);
+        putTableHeaders(headers, header, tableBody);
+        table.classList.add("dispatched-table");
+        table.appendChild(tableBody);
+        viewDiv.appendChild(lineBr);
+        viewDiv.appendChild(table);
+
+        purchase_orders.forEach((purchaseOrder) => {
+          const newRow = element("tr");
+          headers.forEach((header) => {
+            const newCell = element("td");
+
+            switch (header) {
+              case "purchase_order":
+                const link = element("a");
+                link.setAttribute(
+                  "href",
+                  `/admin/manage-stock?action=edit&purchase_order=${purchaseOrder[header]}`
+                );
+                link.innerHTML = purchaseOrder[header];
+                newCell.appendChild(link);
+                break;
+              case "modified":
+                const utcDate = new Date(`${purchaseOrder[header]} UTC`);
+                newCell.innerText = utcToLocale(utcDate);
+                break;
+              default:
+                newCell.innerText = purchaseOrder[header];
+                break;
+            }
+            newRow.appendChild(newCell);
+          });
+          tableBody.appendChild(newRow);
+        });
       }
       break;
   }
@@ -804,8 +846,8 @@ const changeView = async (event) => {
     case "artists":
       urlParams = "?view=artists&page=1&sort=modified&direction=descending";
       break;
-    case "admin":
-      urlParams = "?view=admin";
+    case "purchase-orders":
+      urlParams = "?view=purchase-orders";
       break;
   }
 
@@ -993,66 +1035,60 @@ const checkOut = async () => {
 
 const renderAlbumTable = (albums) => {
   const [table, tableBody, header] = elements(["table", "tbody", "tr"]);
-
-  putTableHeaders(
-    ["cover", "title", "artist", "quantity", "price"],
-    header,
-    tableBody
-  );
+  const headers = ["cover", "title", "artist", "quantity", "price"];
+  putTableHeaders(headers, header, tableBody);
 
   table.classList.add("dispatched-table");
   table.appendChild(tableBody);
 
   albums.forEach((album) => {
-    const row = element("tr");
-    const albumCopy = { ...album };
-    delete albumCopy.artist_id;
+    const newRow = element("tr");
 
-    Object.keys(albumCopy).forEach((key) => {
+    headers.forEach((header) => {
       const td = element("td");
-      switch (key) {
-        case "artist":
-        case "title":
-          const tdA = element("a");
-          let albumUri = "";
 
-          if (key === "artist") {
-            albumUri += `/artist/${album["artist_id"]}/${toUrlCase(
-              album["artist"]
-            )}`;
-          } else if (key === "title") {
-            albumUri += `/artist/${album["artist_id"]}/${toUrlCase(
-              album["artist"]
-            )}/album/${toUrlCase(album["title"])}`;
-            const hiddenA = element("a");
-            hiddenA.setAttribute("class", "hideable-path");
-            hiddenA.setAttribute("href", albumUri);
-            hiddenA.innerText = `${album["artist"]} - ${album["title"]} = ${
-              album["price"]
-            } x ${album["quantity"]} = ${album["price"] * album["quantity"]}`;
-            td.appendChild(hiddenA);
-          }
-
-          tdA.setAttribute("href", albumUri);
-          tdA.setAttribute("class", "inverse-hideable-path ");
-          tdA.innerText = album[key];
-          td.appendChild(tdA);
-
-          break;
-        case "photo":
+      switch (header) {
+        case "cover":
           const image = element("img");
-          image.src = `/common/${album[key]}`;
+          image.src = `/common/${album["photo"]}`;
           image.classList.add("table-img");
           td.appendChild(image);
           break;
-        case "artist_id":
+        case "artist":
+          {
+            const link = element("a");
+            const artistURI = `/artist/${album["artist_id"]}`;
+            link.setAttribute("href", artistURI);
+            link.innerHTML = album["artist"];
+            td.appendChild(link);
+          }
+          break;
+        case "title":
+          {
+            const [link, hiddenLink] = elements(["a", "a"]);
+            const albumUri = `/artist/${album["artist_id"]}/album/${album["album_id"]}`;
+
+            link.setAttribute("href", albumUri);
+            link.innerHTML = album["title"];
+            link.setAttribute("class", "inverse-hideable-path ");
+            td.appendChild(link);
+
+            hiddenLink.setAttribute("href", albumUri);
+            hiddenLink.classList.add("hideable-path");
+            hiddenLink.innerText = `${album["artist"]} - ${album["title"]}, ${
+              album["price"]
+            } x ${album["quantity"]} = ${album["price"] * album["quantity"]}`;
+
+            td.appendChild(hiddenLink);
+          }
           break;
         default:
-          td.innerText = album[key];
+          td.innerHTML = album[header];
       }
-      row.appendChild(td);
+      newRow.appendChild(td);
     });
-    tableBody.appendChild(row);
+
+    tableBody.appendChild(newRow);
   });
 
   return table;

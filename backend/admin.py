@@ -226,12 +226,24 @@ async def admin_get_artists(page: int = None, sort: str = None, direction: str =
     return JSONResponse(response, 200)
 
 
+@admin.get("/purchase-orders")
+async def get_purchase_orders():
+    cmd = "select purchase_orders.purchase_order,modified::varchar,status,count(distinct(album_id)) \
+        as albums from purchase_orders join purchase_order_lines on purchase_orders.purchase_order \
+            = purchase_order_lines.purchase_order group by purchase_orders.purchase_order,status,modified;"
+
+    cursor.execute(cmd)
+    pos = cursor.fetchall()
+    print(pos)
+    return JSONResponse({"purchase_orders": pos}, 200)
+
+
 @admin.post("/purchase-orders")
 @db_functions.tsql
 async def send_purchase_order(request: Request):
     form = await request.form()
 
-    po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order,modified;"
+    """ po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order,modified;"
     cursor.execute(po_cmd)
     inserted = cursor.fetchone()
 
@@ -254,6 +266,22 @@ async def send_purchase_order(request: Request):
         "purchase_order_id": inserted["purchase_order"],
         "modified": inserted["modified"].strftime("%Y-%m-%d %H:%M:%S"),
         "data": po_rows
+    } """
+
+    payload = {
+        "purchase_order_id": 13,
+        "data": [
+            {
+                "album": "Nachthymnen (From the Twilight Kingdom)",
+                "album_id": 1014,
+                "artist": "Abigor",
+                "artist_id": 113,
+                "line": 1,
+                "line_total": 12.84,
+                "quantity": 1
+            }
+        ],
+        "modified": "2025-04-28 17:31:56"
     }
 
     token = get_M2M_token()

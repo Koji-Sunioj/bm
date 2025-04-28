@@ -24,6 +24,7 @@ $$
     select cart, orders from
     (select json_build_object('balance',sum(cart.quantity * albums.price),
     'albums',json_agg(json_build_object('artist_id',artists.artist_id,
+    'album_id',albums.album_id,
 	'photo',albums.photo,'title',albums.title,'artist',artists.name,
 	'quantity',cart.quantity,'price',albums.price))) as cart from cart
     join albums on albums.album_id = cart.album_id
@@ -33,9 +34,10 @@ $$
     (select coalesce(json_agg(orders),'[]') as orders from (select 
     json_build_object('order_id',orders.order_id,'dispatched',orders.dispatched,
     'balance',sum(orders_bridge.quantity * albums.price),'albums',
-    json_agg(json_build_object('artist_id',artists.artist_id,'photo',albums.photo,
-	'title',albums.title,'artist',artists.name,'quantity',orders_bridge.quantity,
-	'price',albums.price))) as orders
+    json_agg(json_build_object('artist_id',artists.artist_id,
+    'album_id',albums.album_id,
+    'photo',albums.photo,'title',albums.title,'artist',artists.name,
+    'quantity',orders_bridge.quantity,'price',albums.price))) as orders
     from orders
     join orders_bridge on orders_bridge.order_id = orders.order_id
     join albums on albums.album_id = orders_bridge.album_id

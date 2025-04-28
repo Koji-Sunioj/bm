@@ -194,7 +194,7 @@ table "purchase_order_lines" {
     columns     = [column.purchase_order]
     ref_columns = [table.purchase_orders.column.purchase_order]
     on_update   = NO_ACTION
-    on_delete   = NO_ACTION
+    on_delete   = CASCADE
   }
 }
 table "purchase_orders" {

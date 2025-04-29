@@ -261,18 +261,6 @@ const renderAdminView = async () => {
   }
 };
 
-const sendOrder = async (event) => {
-  event.preventDefault();
-  const currentForm = new FormData(event.target);
-
-  const request = await fetch("/api/admin/purchase-orders", {
-    method: "POST",
-    body: currentForm,
-  });
-
-  console.log(request.status);
-};
-
 const reOrderLines = () => {
   const rows = document.getElementById("purchase-order-lines").children;
   const nLines = rows.length;
@@ -319,8 +307,6 @@ const handleAddDelButtons = () => {
   const rows = document.getElementById("purchase-order-lines").children;
   const nLines = rows.length;
 
-  console.log(nLines);
-
   for (let index = 1; index < nLines; index++) {
     const rowAlbumID = document.querySelector(`[name=album_id_${index}]`).value;
     const rowStock = document.querySelector(`[name=quantity_${index}]`).value;
@@ -353,6 +339,25 @@ const handleAddDelButtons = () => {
   }
 };
 
+const sendOrder = async (event) => {
+  event.preventDefault();
+  const currentForm = new FormData(event.target);
+
+  const request = await fetch("/api/admin/purchase-orders", {
+    method: "PUT",
+    body: currentForm,
+  });
+
+  const { status } = request;
+  const { detail, purchase_order } = await request.json();
+
+  alert(detail);
+
+  if (status === 200) {
+    window.location.search = `?action=edit&purchase_order=${purchase_order}`;
+  }
+};
+
 const renderPurchaseForm = async () => {
   const {
     location: { search },
@@ -361,8 +366,10 @@ const renderPurchaseForm = async () => {
   const action = url.get("action");
   checkAndRedirect([action], "?action=new");
   const h1 = document.getElementById("manange-stock-title");
-  let response = await fetch("/api/admin/artists");
-  const { artists } = await response.json();
+
+  const { artists } = await fetch("/api/admin/artists").then((response) =>
+    response.json()
+  );
 
   const artistSelect = document.querySelector("[name=artist_id]");
   artists.forEach((artist) => {
@@ -374,10 +381,10 @@ const renderPurchaseForm = async () => {
   });
 
   const albumsUrl = `/api/artists/${artistSelect.value}?view=user`;
-  response = await fetch(albumsUrl);
+
   const {
     artist: { albums },
-  } = await response.json();
+  } = await fetch(albumsUrl).then((response) => response.json());
 
   const albumSelect = document.querySelector("[name=album_id]");
   albums.forEach((album) => {
@@ -399,6 +406,48 @@ const renderPurchaseForm = async () => {
   switch (action) {
     case "edit":
       h1.innerHTML = `Edit purchase order`;
+
+      const { purchase_order, modified, status, lines } = await fetch(
+        `/api/admin/purchase-orders/${url.get("purchase_order")}`
+      ).then((response) => response.json());
+
+      document.getElementById("hidden-div").style.display = "block";
+      document.querySelector("[name=purchase_order]").value = purchase_order;
+      document.querySelector("[name=modified]").value = utcToLocale(
+        new Date(`${modified} UTC`)
+      );
+      document.querySelector("[name=status]").value = status.replace("-", " ");
+
+      const pointers = {
+        0: "artist_id",
+        1: "name",
+        2: "album_id",
+        3: "title",
+        4: "quantity",
+        5: "confirmed",
+        6: "line_total",
+      };
+
+      lines.forEach((poLine) => {
+        const newRow = element("tr");
+
+        parsePOLine(
+          [
+            poLine.artist_id,
+            poLine.name,
+            poLine.album_id,
+            poLine.title,
+            poLine.quantity,
+            poLine.confirmed,
+            poLine.line_total,
+          ],
+          newRow,
+          poLine.line
+        );
+
+        document.getElementById("purchase-order-lines").appendChild(newRow);
+      });
+
       break;
     case "new":
       h1.innerHTML = `Create a new purchase order`;
@@ -509,34 +558,49 @@ const addLine = (event) => {
     const albumText = albumSelect.options[albumSelect.selectedIndex].text;
     const price = priceInput.value;
 
-    const pointers = {
-      0: "artist_id",
-      1: "name",
-      2: "album_id",
-      3: "title",
-      4: "quantity",
-      5: "line_total",
-    };
-
-    [
-      artistId,
-      artistText,
-      albumId,
-      albumText,
-      1,
-      (price * 0.7).toFixed(2),
-    ].forEach((value, index) => {
-      const [newCell, newInput] = elements(["td", "input"]);
-      newInput.name = pointers[index] + "_" + String(nLines);
-      newInput.value = value;
-      newInput.setAttribute("readonly", "true");
-      newCell.appendChild(newInput);
-      newRow.appendChild(newCell);
-    });
+    parsePOLine(
+      [
+        artistId,
+        artistText,
+        albumId,
+        albumText,
+        1,
+        null,
+        (price * 0.7).toFixed(2),
+      ],
+      newRow,
+      nLines
+    );
 
     document.getElementById("purchase-order-lines").appendChild(newRow);
   }
   handleAddDelButtons();
+};
+
+const parsePOLine = (values, newRow, nLines) => {
+  const pointers = {
+    0: "artist_id",
+    1: "name",
+    2: "album_id",
+    3: "title",
+    4: "quantity",
+    5: "confirmed",
+    6: "line_total",
+  };
+
+  values.forEach((value, index) => {
+    const [newCell, newInput] = elements(["td", "input"]);
+    newInput.name = pointers[index] + "_" + String(nLines);
+    newInput.value = value;
+    newInput.setAttribute("readonly", "true");
+
+    if (pointers[index] === "confirmed") {
+      newInput.setAttribute("disabled", "true");
+    }
+
+    newCell.appendChild(newInput);
+    newRow.appendChild(newCell);
+  });
 };
 
 const renderPages = (pages, sort, direction, searchParam, view = null) => {
@@ -689,7 +753,6 @@ const sendAlbum = async (event) => {
         break;
       case "POST":
         window.location.search = `?action=edit&album_id=${album_id}`;
-        console.log(album_id);
         break;
     }
   }

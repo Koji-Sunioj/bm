@@ -18,6 +18,21 @@
     <h1 id="manange-stock-title"></h1>
     <form onsubmit="addLine(event)">
       <fieldset>
+        <div id="hidden-div">
+          <p>purchase order details:</p>
+          <div class="form-field">
+            <label for="purchase_order">purchase order:</label>
+            <input type="text" name="purchase_order" readonly />
+          </div>
+          <div class="form-field">
+            <label for="modified">last modified:</label>
+            <input type="text" name="modified" readonly />
+          </div>
+          <div class="form-field">
+            <label for="status">last modified:</label>
+            <input type="text" name="status" readonly />
+          </div>
+        </div>
         <hr />
         <p>album details:</p>
         <div class="form-field">

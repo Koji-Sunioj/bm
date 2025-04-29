@@ -227,6 +227,7 @@ async def admin_get_artists(page: int = None, sort: str = None, direction: str =
 
 
 @admin.get("/purchase-orders")
+@db_functions.tsql
 async def get_purchase_orders():
     cmd = "select purchase_orders.purchase_order,modified::varchar,status,count(distinct(album_id)) \
         as albums from purchase_orders join purchase_order_lines on purchase_orders.purchase_order \
@@ -238,12 +239,33 @@ async def get_purchase_orders():
     return JSONResponse({"purchase_orders": pos}, 200)
 
 
-@admin.post("/purchase-orders")
+@admin.get("/purchase-orders/{purchase_order}")
+@db_functions.tsql
+async def get_purchase_order(purchase_order):
+    cmd = "select purchase_orders.purchase_order, purchase_orders.status,purchase_orders.modified::varchar,\
+        json_agg(json_build_object('line',purchase_order_lines.line,'artist_id',artists.artist_id,\
+        'name',artists.name,'album_id',purchase_order_lines.album_id,'title',albums.title,\
+        'quantity',purchase_order_lines.quantity,'confirmed',purchase_order_lines.confirmed_quantity,\
+        'line_total',purchase_order_lines.line_total) order by purchase_order_lines.line) as lines\
+        from purchase_orders join purchase_order_lines on \
+        purchase_orders.purchase_order = purchase_order_lines.purchase_order \
+        join albums on albums.album_id = purchase_order_lines.album_id \
+        join artists on artists.artist_id = albums.artist_id where purchase_orders.purchase_order = %s \
+        group by purchase_orders.purchase_order;"
+
+    cursor.execute(cmd, (purchase_order,))
+    purchase_order = cursor.fetchone()
+    print(purchase_order)
+
+    return JSONResponse(purchase_order, 200)
+
+
+@admin.put("/purchase-orders")
 @db_functions.tsql
 async def send_purchase_order(request: Request):
     form = await request.form()
 
-    """ po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order,modified;"
+    po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order,modified;"
     cursor.execute(po_cmd)
     inserted = cursor.fetchone()
 
@@ -266,9 +288,9 @@ async def send_purchase_order(request: Request):
         "purchase_order_id": inserted["purchase_order"],
         "modified": inserted["modified"].strftime("%Y-%m-%d %H:%M:%S"),
         "data": po_rows
-    } """
+    }
 
-    payload = {
+    """ payload = {
         "purchase_order_id": 13,
         "data": [
             {
@@ -282,17 +304,22 @@ async def send_purchase_order(request: Request):
             }
         ],
         "modified": "2025-04-28 17:31:56"
-    }
+    } """
 
     token = get_M2M_token()
     headers = {"Authorization": token}
 
-    something = requests.post(dotenv_values(
+    lambda_response = requests.put(dotenv_values(
         ".env")["M2M_SERVER"]+"/purchase-orders", json=payload, headers=headers)
-    print(something.json())
-    print(something.status_code)
 
-    response = {"detail": "purchase order created"}
+    response = {"detail": lambda_response.json()["message"]}
+
+    if lambda_response.status_code != 200:
+        return JSONResponse(response, 400)
+
+    response["purchase_order"] = inserted["purchase_order"]
+    # response["purchase_order"] = 13
+
     return JSONResponse(response, 200)
 
 

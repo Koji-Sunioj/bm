@@ -434,3 +434,11 @@ select::-ms-expand {
 .purchase-order-lines > tbody > tr > td:nth-child(2) {
   width: 15vw;
 }
+
+#hidden-div {
+  display: none;
+}
+
+#hidden-div > .form-field > input {
+  background-color: grey;
+}

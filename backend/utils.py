@@ -17,12 +17,11 @@ class AuthorizationError(Exception):
 
 def get_M2M_token():
     b64_auth = base64.b64encode(dotenv_values(
-        ".env")["M2M_CREDS"].encode("utf-8")).decode("utf-8")
+        ".env")["LAMBDA_CREDS"].encode("utf-8")).decode("utf-8")
     headers = {"Authorization": "Basic %s" % b64_auth}
-    data = {"grant_type": "client_credentials", "scope": "bm-scope/read"}
-    response = requests.post(
-        "https://bm-m2m.auth.eu-north-1.amazoncognito.com/oauth2/token", headers=headers, data=data)
-    return response.json()["access_token"]
+    response = requests.post(dotenv_values(
+        ".env")["LAMBDA_SERVER"]+"/auth/client", headers=headers)
+    return response.json()["token"]
 
 
 def parse_samples(album):

@@ -255,12 +255,11 @@ async def get_purchase_order(purchase_order):
 
     cursor.execute(cmd, (purchase_order,))
     purchase_order = cursor.fetchone()
-    print(purchase_order)
 
     return JSONResponse(purchase_order, 200)
 
 
-@admin.put("/purchase-orders")
+@admin.post("/purchase-orders")
 @db_functions.tsql
 async def send_purchase_order(request: Request):
     form = await request.form()
@@ -290,27 +289,11 @@ async def send_purchase_order(request: Request):
         "data": po_rows
     }
 
-    """ payload = {
-        "purchase_order_id": 13,
-        "data": [
-            {
-                "album": "Nachthymnen (From the Twilight Kingdom)",
-                "album_id": 1014,
-                "artist": "Abigor",
-                "artist_id": 113,
-                "line": 1,
-                "line_total": 12.84,
-                "quantity": 1
-            }
-        ],
-        "modified": "2025-04-28 17:31:56"
-    } """
-
     token = get_M2M_token()
     headers = {"Authorization": token}
 
     lambda_response = requests.put(dotenv_values(
-        ".env")["M2M_SERVER"]+"/purchase-orders", json=payload, headers=headers)
+        ".env")["LAMBDA_SERVER"]+"/purchase-orders", json=payload, headers=headers)
 
     response = {"detail": lambda_response.json()["message"]}
 
@@ -318,7 +301,6 @@ async def send_purchase_order(request: Request):
         return JSONResponse(response, 400)
 
     response["purchase_order"] = inserted["purchase_order"]
-    # response["purchase_order"] = 13
 
     return JSONResponse(response, 200)
 

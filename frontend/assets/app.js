@@ -344,7 +344,7 @@ const sendOrder = async (event) => {
   const currentForm = new FormData(event.target);
 
   const request = await fetch("/api/admin/purchase-orders", {
-    method: "PUT",
+    method: "POST",
     body: currentForm,
   });
 

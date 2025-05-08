@@ -293,7 +293,7 @@ async def send_purchase_order(request: Request):
     headers = {"Authorization": token}
 
     lambda_response = requests.put(dotenv_values(
-        ".env")["LAMBDA_SERVER"]+"/purchase-orders", json=payload, headers=headers)
+        ".env")["LAMBDA_SERVER"]+"/purchase-orders/client", json=payload, headers=headers)
 
     response = {"detail": lambda_response.json()["message"]}
 

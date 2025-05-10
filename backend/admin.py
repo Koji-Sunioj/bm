@@ -264,7 +264,7 @@ async def get_purchase_order(purchase_order):
 async def send_purchase_order(request: Request):
     form = await request.form()
 
-    po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order,modified;"
+    po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order,modified,status;"
     cursor.execute(po_cmd)
     inserted = cursor.fetchone()
 
@@ -285,6 +285,7 @@ async def send_purchase_order(request: Request):
 
     payload = {
         "purchase_order_id": inserted["purchase_order"],
+        "status": inserted["status"],
         "modified": inserted["modified"].strftime("%Y-%m-%d %H:%M:%S"),
         "data": po_rows
     }

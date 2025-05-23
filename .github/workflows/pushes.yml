@@ -30,7 +30,9 @@ jobs:
           echo $BACKEND_ENV | base64 -d > /home/ubuntu/bm/backend/.env
           sudo nginx -s reload
           lsof -t -i:8000 | xargs kill
-          sudo -u ubuntu python3 -m gunicorn --worker-class uvicorn.workers.UvicornWorker --chdir /home/ubuntu/bm/backend/ --daemon main:app --error-logfile backend-error.log"
+          sudo -u ubuntu python3 -m gunicorn --worker-class uvicorn.workers.UvicornWorker \
+          --chdir /home/ubuntu/bm/backend/ --daemon main:app --error-logfile backend-error.log \
+          --access-logfile backend-access.log"
   check-db:
     needs: deploy
     runs-on: ubuntu-latest

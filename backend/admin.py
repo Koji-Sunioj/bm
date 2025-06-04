@@ -318,11 +318,13 @@ async def send_purchase_order(request: Request):
         ]
     }
 
+    payload = json.dumps(payload)
+
     hmac_hex = get_hmac(payload)
     headers = {"Authorization": hmac_hex}
 
     lambda_response = requests.put(dotenv_values(
-        ".env")["LAMBDA_SERVER"]+"/purchase-orders/client", json=payload, headers=headers)
+        ".env")["LAMBDA_SERVER"]+"/purchase-orders/client", data=payload, headers=headers)
 
     response = {"detail": lambda_response.json()["message"]}
 

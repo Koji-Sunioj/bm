@@ -352,10 +352,10 @@ const sendOrder = async (event) => {
   const { detail, purchase_order } = await request.json();
 
   alert(detail);
-
+  /* 
   if (status === 200) {
     window.location.search = `?action=edit&purchase_order=${purchase_order}`;
-  }
+  } */
 };
 
 const renderPurchaseForm = async () => {

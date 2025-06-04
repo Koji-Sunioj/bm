@@ -1,7 +1,9 @@
 
 import re
-import requests
+import hmac
 import base64
+import hashlib
+import requests
 from jose import jwt
 from dotenv import dotenv_values
 from cryptography.fernet import Fernet
@@ -15,13 +17,10 @@ class AuthorizationError(Exception):
     pass
 
 
-def get_M2M_token():
-    b64_auth = base64.b64encode(dotenv_values(
-        ".env")["LAMBDA_CREDS"].encode("utf-8")).decode("utf-8")
-    headers = {"Authorization": "Basic %s" % b64_auth}
-    response = requests.post(dotenv_values(
-        ".env")["LAMBDA_SERVER"]+"/auth/client", headers=headers)
-    return response.json()["token"]
+def get_hmac(payload):
+    print(str(payload).encode())
+    secret_key = dotenv_values(".env")["LAMBDA_CREDS"].encode()
+    return hmac.digest(secret_key, str(payload).encode(), digest=hashlib.sha256).hex()
 
 
 def parse_samples(album):

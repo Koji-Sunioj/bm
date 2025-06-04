@@ -1,4 +1,5 @@
 import os
+import json
 import requests
 import datetime
 import db_functions
@@ -262,7 +263,7 @@ async def get_purchase_order(purchase_order):
 @admin.post("/purchase-orders")
 @db_functions.tsql
 async def send_purchase_order(request: Request):
-    form = await request.form()
+    """ form = await request.form()
 
     po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order,modified,status;"
     cursor.execute(po_cmd)
@@ -281,17 +282,44 @@ async def send_purchase_order(request: Request):
         else:
             inserts += ",\n"
 
-    cursor.execute(inserts)
+    cursor.execute(inserts) """
 
-    payload = {
+    """ payload = {
         "purchase_order_id": inserted["purchase_order"],
         "status": inserted["status"],
         "modified": inserted["modified"].strftime("%Y-%m-%d %H:%M:%S"),
         "data": po_rows
     }
+    """
 
-    token = get_M2M_token()
-    headers = {"Authorization": token}
+    payload = {
+        "purchase_order_id": 20,
+        "status": "pending-supplier",
+        "modified": "2025-06-04 17:07:23",
+        "data": [
+            {
+                "line": 1,
+                "artist_id": 113,
+                "artist": "Abigor",
+                "album_id": 1014,
+                "album": "Nachthymnen (From the Twilight Kingdom)",
+                "quantity": 1,
+                "line_total": 12.84
+            },
+            {
+                "line": 2,
+                "artist_id": 107,
+                "artist": "Azarath",
+                "album_id": 1007,
+                "album": "Blasphemers' Maledictions",
+                "quantity": 2,
+                "line_total": 23.45
+            }
+        ]
+    }
+
+    hmac_hex = get_hmac(payload)
+    headers = {"Authorization": hmac_hex}
 
     lambda_response = requests.put(dotenv_values(
         ".env")["LAMBDA_SERVER"]+"/purchase-orders/client", json=payload, headers=headers)
@@ -301,7 +329,8 @@ async def send_purchase_order(request: Request):
     if lambda_response.status_code != 200:
         return JSONResponse(response, 400)
 
-    response["purchase_order"] = inserted["purchase_order"]
+    # response["purchase_order"] = inserted["purchase_order"]
+    response["purchase_order"] = 123
 
     return JSONResponse(response, 200)
 

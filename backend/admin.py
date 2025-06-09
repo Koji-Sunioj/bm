@@ -284,7 +284,7 @@ async def send_purchase_order(request: Request):
     cursor.execute(inserts)
 
     client_id = "bm-prod" if os.path.exists(
-        '/var/lib/cloud/instance') else "bm-test"
+        '/var/lib/cloud/instance') else "bm-dev"
 
     payload = json.dumps({
         "client_id": client_id,

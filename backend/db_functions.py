@@ -34,6 +34,8 @@ def tsql(function):
             match error_string:
                 case "UniqueViolation register" | "AuthorizationError register":
                     return JSONResponse({"detail": "not on guest list or username is taken"}, 401)
+                case "Exception merchant_response":
+                    return JSONResponse({"detail": "invalid merchant credentials"}, 401)
             return False
 
     return transaction

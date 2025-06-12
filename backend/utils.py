@@ -17,8 +17,15 @@ class AuthorizationError(Exception):
     pass
 
 
+def check_hmac(payload, client_hmac):
+    secret_key = dotenv_values(".env")["LAMBDA_CREDS"].encode()
+    correct_hmac = hmac.digest(
+        secret_key, payload.encode(), digest=hashlib.sha256).hex()
+    if not hmac.compare_digest(client_hmac, correct_hmac):
+        raise Exception("invalid credentials")
+
+
 def get_hmac(payload):
-    print(str(payload).encode())
     secret_key = dotenv_values(".env")["LAMBDA_CREDS"].encode()
     return hmac.digest(secret_key, str(payload).encode(), digest=hashlib.sha256).hex()
 
@@ -151,7 +158,6 @@ async def verify_admin_token(request: Request):
         request.state.role = decode_role(jwt_payload["role"])
         request.state.sub = jwt_payload["sub"]
     except Exception as error:
-        print(error)
         raise HTTPException(status_code=401, detail="invalid credentials")
 
 
@@ -160,5 +166,4 @@ async def verify_token(request: Request):
         jwt_payload = await decode_token(request)
         request.state.sub = jwt_payload["sub"]
     except Exception as error:
-        print(error)
         raise HTTPException(status_code=401, detail="invalid credentials")

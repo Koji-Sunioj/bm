@@ -1,5 +1,4 @@
-import re
-import requests
+import json
 import db_functions
 from utils import *
 from jose import jwt
@@ -171,3 +170,43 @@ async def register(request: Request):
     code, detail = (400, "error creating user") if not created else (
         200, "user created")
     return JSONResponse({"detail": detail}, code)
+
+
+@api.post("/purchase-orders/merchant-response")
+@db_functions.tsql
+async def merchant_response(request: Request):
+    payload = await request.json()
+    check_hmac(json.dumps(payload), request.headers["authorization"])
+    lines = [line["line"] for line in payload["lines"]]
+    confirmed_qtys = [line["confirmed"] for line in payload["lines"]]
+
+    update_cmd = """
+    with updated as(
+        update purchase_order_lines
+        set confirmed_quantity = merchant.quantity
+        from (select 
+            unnest(%s) as line,
+            unnest(%s) as quantity
+        ) as merchant where merchant.line = purchase_order_lines.line
+        and purchase_order=%s returning purchase_order_lines.line,purchase_order_lines.confirmed_quantity)
+    select *
+    from updated
+    order by updated.line asc;
+    """
+    cursor.execute(update_cmd, (lines, confirmed_qtys,
+                   payload["purchase_order_id"]))
+    updated_rows = cursor.fetchall()
+
+    confirmed = []
+    payload["lines"].sort(key=lambda x: x["line"])
+
+    for updated_row, line in zip(updated_rows, payload["lines"]):
+        if updated_row["line"] == line["line"]:
+            confirmed.append(
+                updated_row["confirmed_quantity"] == line["confirmed"])
+
+    status = "confirmed" if all(confirmed) else "pending-buyer"
+    update_cmd = "update purchase_orders set status=%s where purchase_order=%s;"
+    cursor.execute(update_cmd, (status, payload["purchase_order_id"]))
+
+    return JSONResponse({"detail": "purchase order %s updated" % payload["purchase_order_id"]}, 200)

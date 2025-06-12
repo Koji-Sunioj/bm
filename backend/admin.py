@@ -1,7 +1,6 @@
 import os
 import json
 import requests
-import datetime
 import db_functions
 from utils import *
 from db_functions import cursor
@@ -305,7 +304,6 @@ async def send_purchase_order(request: Request):
         return JSONResponse(response, 400)
 
     response["purchase_order"] = inserted["purchase_order"]
-
     return JSONResponse(response, 200)
 
 

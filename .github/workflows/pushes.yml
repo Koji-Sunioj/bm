@@ -31,7 +31,7 @@ jobs:
           sudo nginx -s reload
           lsof -t -i:8000 | xargs kill
           sudo -u ubuntu python3 -m gunicorn --worker-class uvicorn.workers.UvicornWorker \
-          --chdir /home/ubuntu/bm/backend/ --daemon main:app
+          --chdir /home/ubuntu/bm/backend/ --daemon main:app"
   check-db:
     needs: deploy
     runs-on: ubuntu-latest

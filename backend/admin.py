@@ -297,8 +297,10 @@ async def send_purchase_order(request: Request):
     headers = {"Authorization": hmac_hex}
 
     lambda_response = requests.put(dotenv_values(
-        ".env")["LAMBDA_SERVER"]+"/purchase-orders/client", data=payload, headers=headers)
+        ".env")["LAMBDA_SERVER"]+"/client/purchase-orders", data=payload, headers=headers)
     response = {"detail": lambda_response.json()["message"]}
+
+    print(lambda_response)
 
     if lambda_response.status_code != 200:
         return JSONResponse(response, 400)

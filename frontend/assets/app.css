@@ -435,10 +435,10 @@ select::-ms-expand {
   width: 15vw;
 }
 
-#hidden-div {
+#po-details,#add-line {
   display: none;
 }
 
-#hidden-div > .form-field > input {
+#po-details > .form-field > input {
   background-color: grey;
 }

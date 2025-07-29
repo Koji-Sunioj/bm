@@ -188,7 +188,7 @@ async def merchant_response(request: Request):
             unnest(%s) as line,
             unnest(%s) as quantity
         ) as merchant where merchant.line = purchase_order_lines.line
-        and purchase_order=%s returning purchase_order_lines.line,purchase_order_lines.confirmed_quantity)
+        and purchase_order=%s returning purchase_order_lines.quantity, purchase_order_lines.line,purchase_order_lines.confirmed_quantity)
     select *
     from updated
     order by updated.line asc;
@@ -196,14 +196,11 @@ async def merchant_response(request: Request):
     cursor.execute(update_cmd, (lines, confirmed_qtys,
                    payload["purchase_order_id"]))
     updated_rows = cursor.fetchall()
-
     confirmed = []
-    payload["lines"].sort(key=lambda x: x["line"])
 
-    for updated_row, line in zip(updated_rows, payload["lines"]):
-        if updated_row["line"] == line["line"]:
-            confirmed.append(
-                updated_row["confirmed_quantity"] == line["confirmed"])
+    for updated_row in updated_rows:
+        confirmed.append(updated_row["quantity"] ==
+                         updated_row["confirmed_quantity"])
 
     status = "confirmed" if all(confirmed) else "pending-buyer"
     update_cmd = "update purchase_orders set status=%s where purchase_order=%s;"

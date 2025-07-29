@@ -239,7 +239,7 @@ const renderAdminView = async () => {
                 const link = element("a");
                 link.setAttribute(
                   "href",
-                  `/admin/manage-stock?action=edit&purchase_order=${purchaseOrder[header]}`
+                  `/admin/manage-stock?action=view&purchase_order=${purchaseOrder[header]}`
                 );
                 link.innerHTML = purchaseOrder[header];
                 newCell.appendChild(link);
@@ -341,21 +341,28 @@ const handleAddDelButtons = () => {
 
 const sendOrder = async (event) => {
   event.preventDefault();
-  const currentForm = new FormData(event.target);
 
+  const {
+    location: { search },
+  } = window;
+  const url = new URLSearchParams(search);
+  const method = url.get("action") === "new" ? "POST" : "PATCH";
+
+  const currentForm = new FormData(event.target);
+  document.getElementById("line-form").disabled = true;
   const request = await fetch("/api/admin/purchase-orders", {
-    method: "POST",
+    method: method,
     body: currentForm,
   });
-
   const { status } = request;
   const { detail, purchase_order } = await request.json();
-
   alert(detail);
 
   if (status === 200) {
-    window.location.search = `?action=edit&purchase_order=${purchase_order}`;
+    window.location.search = `?action=view&purchase_order=${purchase_order}`;
   }
+
+  document.getElementById("line-form").disabled = false;
 };
 
 const renderPurchaseForm = async () => {
@@ -366,71 +373,24 @@ const renderPurchaseForm = async () => {
   const action = url.get("action");
   checkAndRedirect([action], "?action=new");
   const h1 = document.getElementById("manange-stock-title");
-
-  const { artists } = await fetch("/api/admin/artists").then((response) =>
-    response.json()
-  );
-
-  const artistSelect = document.querySelector("[name=artist_id]");
-  artists.forEach((artist) => {
-    const { name, artist_id } = artist;
-    const newOption = element("option");
-    newOption.innerHTML = name;
-    newOption.value = artist_id;
-    artistSelect.appendChild(newOption);
-  });
-
-  const albumsUrl = `/api/artists/${artistSelect.value}?view=user`;
-
-  const {
-    artist: { albums },
-  } = await fetch(albumsUrl).then((response) => response.json());
-
-  const albumSelect = document.querySelector("[name=album_id]");
-  albums.forEach((album) => {
-    const { album_id, title } = album;
-    const newOption = element("option");
-    newOption.innerHTML = title;
-    newOption.value = album_id;
-    albumSelect.appendChild(newOption);
-  });
-
-  //add button
-  const firstAlbum = albums.find(
-    (album) => album.album_id === Number(albumSelect.value)
-  );
-
-  document.querySelector("[name=stock]").value = firstAlbum.stock;
-  document.querySelector("[name=price]").value = firstAlbum.price;
+  let addable = true;
 
   switch (action) {
-    case "edit":
-      h1.innerHTML = `Edit purchase order`;
-
+    case "view":
+      h1.innerHTML = `View purchase order`;
       const { purchase_order, modified, status, lines } = await fetch(
         `/api/admin/purchase-orders/${url.get("purchase_order")}`
       ).then((response) => response.json());
-
-      document.getElementById("hidden-div").style.display = "block";
+      addable = status === "confirmed" ? false : true;
+      document.getElementById("po-details").style.display = "block";
       document.querySelector("[name=purchase_order]").value = purchase_order;
       document.querySelector("[name=modified]").value = utcToLocale(
         new Date(`${modified} UTC`)
       );
       document.querySelector("[name=status]").value = status.replace("-", " ");
 
-      const pointers = {
-        0: "artist_id",
-        1: "name",
-        2: "album_id",
-        3: "title",
-        4: "quantity",
-        5: "confirmed",
-        6: "line_total",
-      };
-
       lines.forEach((poLine) => {
         const newRow = element("tr");
-
         parsePOLine(
           [
             poLine.artist_id,
@@ -444,17 +404,56 @@ const renderPurchaseForm = async () => {
           newRow,
           poLine.line
         );
-
         document.getElementById("purchase-order-lines").appendChild(newRow);
       });
 
       break;
+
     case "new":
       h1.innerHTML = `Create a new purchase order`;
+      addable = true;
       break;
   }
 
-  handleAddDelButtons();
+  if (addable) {
+    const { artists } = await fetch("/api/admin/artists").then((response) =>
+      response.json()
+    );
+
+    const artistSelect = document.querySelector("[name=artist_id]");
+    artists.forEach((artist) => {
+      const { name, artist_id } = artist;
+      const newOption = element("option");
+      newOption.innerHTML = name;
+      newOption.value = artist_id;
+      artistSelect.appendChild(newOption);
+    });
+    const albumsUrl = `/api/artists/${artistSelect.value}?view=user`;
+
+    const {
+      artist: { albums },
+    } = await fetch(albumsUrl).then((response) => response.json());
+
+    const albumSelect = document.querySelector("[name=album_id]");
+    albums.forEach((album) => {
+      const { album_id, title } = album;
+      const newOption = element("option");
+      newOption.innerHTML = title;
+      newOption.value = album_id;
+      albumSelect.appendChild(newOption);
+    });
+    const firstAlbum = albums.find(
+      (album) => album.album_id === Number(albumSelect.value)
+    );
+
+    document.querySelector("[name=stock]").value = firstAlbum.stock;
+    document.querySelector("[name=price]").value = firstAlbum.price;
+    document.getElementById("add-line").style.display = "block";
+    handleAddDelButtons();
+  } else {
+    document.getElementById("line-form").disabled = true;
+    document.getElementById("po-form").disabled = true;
+  }
 };
 
 const changeAlbums = async (event) => {
@@ -592,10 +591,11 @@ const parsePOLine = (values, newRow, nLines) => {
     const [newCell, newInput] = elements(["td", "input"]);
     newInput.name = pointers[index] + "_" + String(nLines);
     newInput.value = value;
-    newInput.setAttribute("readonly", "true");
 
     if (pointers[index] === "confirmed") {
       newInput.setAttribute("disabled", "true");
+    } else {
+      newInput.setAttribute("readonly", "true");
     }
 
     newCell.appendChild(newInput);
@@ -658,8 +658,11 @@ const sendArtist = async (event) => {
       currentForm.set(pair[0], pair[1].trim());
     }
   }
-
-  const method = urlActionMethod();
+  const {
+    location: { search },
+  } = window;
+  const url = new URLSearchParams(search);
+  const method = url.get("action") === "new" ? "POST" : "PATCH";
 
   const response = await fetch("/api/admin/artists", {
     method: method,

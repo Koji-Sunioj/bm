@@ -254,8 +254,54 @@ async def get_purchase_order(purchase_order):
 
     cursor.execute(cmd, (purchase_order,))
     purchase_order = cursor.fetchone()
-
     return JSONResponse(purchase_order, 200)
+
+
+@admin.get("/purchase-orders/{purchase_order}/{album_id}")
+@db_functions.tsql
+async def get_purchase_order_line(purchase_order, album_id):
+    cmd = "select album_id,quantity,confirmed_quantity,line_total::float \
+        from purchase_orders join purchase_order_lines on \
+        purchase_orders.purchase_order = purchase_order_lines.purchase_order \
+        where purchase_orders.purchase_order = %s and album_id = %s;"
+
+    cursor.execute(cmd, (purchase_order, album_id))
+    line_item = cursor.fetchone()
+    response = line_item if line_item != None else {"lines": 0}
+
+    return JSONResponse(response, 200)
+
+
+@admin.patch("/purchase-orders")
+@db_functions.tsql
+async def update_purchase_order(request: Request):
+    form = await request.form()
+    po_rows = form_po_rows_to_list(form)
+
+    cmd = "select line,album_id,quantity,line_total::float,confirmed_quantity from purchase_order_lines where purchase_order = %s;"
+    cursor.execute(cmd, (form["purchase_order"],))
+    existing_lines = cursor.fetchall()
+
+    new_albums = [new_line["album_id"] for new_line in po_rows]
+    existing_albums = [old_line["album_id"] for old_line in existing_lines]
+
+    to_update_lines = []
+    for new_line, old_line in zip(po_rows, existing_lines):
+        old_values = list(old_line.values())
+        del old_values[-1]
+        confirmed_value = [i["confirmed_quantity"]
+                           for i in existing_lines if i["album_id"] == new_line["album_id"]][0]
+
+        if list(new_line.values()) != old_values:
+            new_line["confirmed_quantity"] = confirmed_value
+            to_update_lines.append(new_line)
+
+    to_add_lines = [
+        new_line for new_line in po_rows if new_line["album_id"] not in existing_albums]
+
+    to_delete_lines = [old_line["album_id"]
+                       for old_line in existing_lines if old_line["album_id"] not in new_albums]
+    return JSONResponse({"detail": "hey"}, 200)
 
 
 @admin.post("/purchase-orders")
@@ -299,8 +345,6 @@ async def send_purchase_order(request: Request):
     lambda_response = requests.put(dotenv_values(
         ".env")["LAMBDA_SERVER"]+"/client/purchase-orders", data=payload, headers=headers)
     response = {"detail": lambda_response.json()["message"]}
-
-    print(lambda_response)
 
     if lambda_response.status_code != 200:
         return JSONResponse(response, 400)

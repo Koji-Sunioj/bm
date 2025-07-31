@@ -275,6 +275,7 @@ const reOrderLines = () => {
 };
 
 const deleteLine = () => {
+  const price = Number(document.querySelector("[name=price]").value);
   const formAlbumID = document.querySelector("[name=album_id]").value;
   const rows = document.getElementById("purchase-order-lines").children;
   const nLines = rows.length;
@@ -289,7 +290,11 @@ const deleteLine = () => {
       reOrderLines();
       break;
     } else if (rowAlbumID === formAlbumID && futureStock > 0) {
-      rowStockCell.value = Number(rowStockCell.value - 1);
+      rowStockCell.value = futureStock;
+      const wholeSalePrice = futureStock <= 5 ? 0.7 : 0.6;
+      const newTotal = price * futureStock * wholeSalePrice;
+      document.querySelector(`[name=line_total_${index}]`).value =
+        newTotal.toFixed(2);
       break;
     }
   }
@@ -341,7 +346,6 @@ const handleAddDelButtons = () => {
 
 const sendOrder = async (event) => {
   event.preventDefault();
-
   const {
     location: { search },
   } = window;
@@ -350,6 +354,12 @@ const sendOrder = async (event) => {
 
   const currentForm = new FormData(event.target);
   document.getElementById("line-form").disabled = true;
+
+  if (method === "PATCH") {
+    const purchaseOrder = document.querySelector("[name=purchase_order]").value;
+    currentForm.append("purchase_order", purchaseOrder);
+  }
+
   const request = await fetch("/api/admin/purchase-orders", {
     method: method,
     body: currentForm,
@@ -510,20 +520,20 @@ const changeAlbum = async (event) => {
   fieldSet.disabled = false;
 };
 
-const addLine = (event) => {
+const addLine = async (event) => {
   event.preventDefault();
-  const [artistSelect, albumSelect, priceInput, existingStock] = [
+  const [artistSelect, albumSelect, price, existingStock, purchaseOrder] = [
     document.querySelector("[name=artist_id]"),
     document.querySelector("[name=album_id]"),
-    document.querySelector("[name=price]"),
+    Number(document.querySelector("[name=price]").value),
     Number(document.querySelector("[name=stock]").value),
+    document.querySelector("[name=purchase_order]").value,
   ];
 
-  const albumId = albumSelect.value;
-
   let newRow = element("tr");
-  const rows = document.getElementById("purchase-order-lines").children;
-  const nLines = rows.length;
+  const albumId = albumSelect.value;
+  const nLines = document.getElementById("purchase-order-lines").children
+    .length;
 
   for (let index = 1; index < nLines; index++) {
     const existingAlbumID = document.querySelector(
@@ -541,12 +551,10 @@ const addLine = (event) => {
       if (newQuantity + existingStock <= 10) {
         existingQuantity.value = newQuantity;
         const wholeSalePrice = newQuantity <= 5 ? 0.7 : 0.6;
+        const newTotal = price * newQuantity * wholeSalePrice;
 
-        document.querySelector(`[name=line_total_${index}]`).value = (
-          Number(priceInput.value) *
-          newQuantity *
-          wholeSalePrice
-        ).toFixed(2);
+        document.querySelector(`[name=line_total_${index}]`).value =
+          newTotal.toFixed(2);
       }
     }
   }
@@ -555,22 +563,57 @@ const addLine = (event) => {
     const artistText = artistSelect.options[artistSelect.selectedIndex].text;
     const artistId = artistSelect.value;
     const albumText = albumSelect.options[albumSelect.selectedIndex].text;
-    const price = priceInput.value;
 
-    parsePOLine(
-      [
-        artistId,
-        artistText,
-        albumId,
-        albumText,
-        1,
-        null,
-        (price * 0.7).toFixed(2),
-      ],
-      newRow,
-      nLines
-    );
+    let action = purchaseOrder.length > 0 ? "fetch" : "add";
 
+    switch (action) {
+      case "fetch":
+        const data = await fetch(
+          `/api/admin/purchase-orders/${purchaseOrder}/${albumId}`
+        ).then((response) => response.json());
+        if (
+          Object.keys(data).every((key) =>
+            [
+              "album_id",
+              "quantity",
+              "confirmed_quantity",
+              "line_total",
+            ].includes(key)
+          )
+        ) {
+          parsePOLine(
+            [
+              artistId,
+              artistText,
+              albumId,
+              albumText,
+              data["quantity"],
+              data["confirmed_quantity"],
+              data["line_total"].toFixed(2),
+            ],
+            newRow,
+            nLines
+          );
+          break;
+        } else {
+          action = "add";
+        }
+      case "add":
+        parsePOLine(
+          [
+            artistId,
+            artistText,
+            albumId,
+            albumText,
+            1,
+            null,
+            (price * 0.7).toFixed(2),
+          ],
+          newRow,
+          nLines
+        );
+        break;
+    }
     document.getElementById("purchase-order-lines").appendChild(newRow);
   }
   handleAddDelButtons();
@@ -592,7 +635,7 @@ const parsePOLine = (values, newRow, nLines) => {
     newInput.name = pointers[index] + "_" + String(nLines);
     newInput.value = value;
 
-    if (pointers[index] === "confirmed") {
+    if (pointers[index] === "confirmed" && value === null) {
       newInput.setAttribute("disabled", "true");
     } else {
       newInput.setAttribute("readonly", "true");
@@ -898,8 +941,6 @@ const changeView = async (event) => {
     target: { value: view },
   } = event;
 
-  console.log(view);
-
   let urlParams = "";
 
   switch (view) {
@@ -1195,8 +1236,6 @@ const renderAlbums = async () => {
   const { albums, pages } = await fetch(fetchUrl).then((response) =>
     response.json()
   );
-
-  console.log(albums);
 
   renderAlbumTiles(albums);
 

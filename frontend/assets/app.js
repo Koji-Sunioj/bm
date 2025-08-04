@@ -54,7 +54,6 @@ const renderAdminView = async () => {
     location: { search },
   } = window;
   const url = new URLSearchParams(search);
-
   const view = url.get("view");
   checkAndRedirect([view], "?view=add");
 

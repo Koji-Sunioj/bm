@@ -282,25 +282,60 @@ async def update_purchase_order(request: Request):
     cursor.execute(cmd, (form["purchase_order"],))
     existing_lines = cursor.fetchall()
 
-    new_albums = [new_line["album_id"] for new_line in po_rows]
-    existing_albums = [old_line["album_id"] for old_line in existing_lines]
+    for n, new_line in enumerate(po_rows):
+        confirmed_value = [i["confirmed_quantity"]
+                           for i in existing_lines if i["album_id"] == new_line["album_id"]]
+        new_line["confirmed_quantity"] = confirmed_value[0] if len(
+            confirmed_value) == 1 else None
+        po_rows[n] = new_line
 
     to_update_lines = []
-    for new_line, old_line in zip(po_rows, existing_lines):
-        old_values = list(old_line.values())
-        del old_values[-1]
-        confirmed_value = [i["confirmed_quantity"]
-                           for i in existing_lines if i["album_id"] == new_line["album_id"]][0]
 
+    for new_line, old_line in zip(po_rows, existing_lines):
+        old_values = list(old_line.values())[:-1]
         if list(new_line.values()) != old_values:
-            new_line["confirmed_quantity"] = confirmed_value
             to_update_lines.append(new_line)
 
+    old_lines = [old_line["line"] for old_line in existing_lines]
     to_add_lines = [
-        new_line for new_line in po_rows if new_line["album_id"] not in existing_albums]
+        new_line for new_line in po_rows if new_line["line"] not in old_lines]
 
-    to_delete_lines = [old_line["album_id"]
-                       for old_line in existing_lines if old_line["album_id"] not in new_albums]
+    if len(to_update_lines) > 0:
+        update_cmd = """update purchase_order_lines 
+            set line = new_lines.line,
+                album_id = new_lines.album_id,
+                quantity = new_lines.quantity,
+                confirmed_quantity = new_lines.confirmed_quantity,
+                line_total = new_lines.line_total
+                from (select 
+                    unnest(%s) as line,
+                    unnest(%s) as album_id,
+                    unnest(%s) as quantity,
+                    unnest(%s) as line_total,
+                    unnest(%s::smallint[]) as confirmed_quantity) 
+                as new_lines
+            where purchase_order_lines.purchase_order=%s and 
+            purchase_order_lines.line = new_lines.line;"""
+
+        update_lines = dict_list_to_matrix(to_update_lines)
+        cursor.execute(update_cmd, (*update_lines, form["purchase_order"]))
+
+    if len(to_add_lines) > 0:
+        insert_lines = dict_list_to_matrix(to_add_lines)
+        insert_cmd = """insert into purchase_order_lines 
+            (line,album_id,quantity,line_total,confirmed_quantity,purchase_order) 
+            select unnest(%s),unnest(%s),unnest(%s),unnest(%s),unnest(%s::smallint[]),%s;
+            """
+        cursor.execute(insert_cmd, (*insert_lines, form["purchase_order"]))
+
+    if len(po_rows) < len(existing_lines) and len(to_add_lines) == 0:
+        new_albums = [new_line["album_id"] for new_line in po_rows]
+        to_delete_lines = [old_line["line"]
+                           for old_line in existing_lines if old_line["album_id"] not in new_albums]
+
+        delete_cmd = "delete from purchase_order_lines where line in (select unnest(ARRAY[%s])) and purchase_order = %s;"
+        cursor.execute(delete_cmd, (*to_delete_lines, form["purchase_order"]))
+
     return JSONResponse({"detail": "hey"}, 200)
 
 

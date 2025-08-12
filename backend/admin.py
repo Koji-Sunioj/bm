@@ -4,6 +4,7 @@ import requests
 import db_functions
 from utils import *
 from db_functions import cursor
+from datetime import datetime, timezone
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Request, Depends
 
@@ -293,7 +294,10 @@ async def update_purchase_order(request: Request):
 
     for new_line, old_line in zip(po_rows, existing_lines):
         old_values = list(old_line.values())[:-1]
-        if list(new_line.values()) != old_values:
+        new_values = [new_line["line"], new_line["album_id"], new_line["quantity"],
+                      new_line["line_total"]]
+
+        if new_values != old_values:
             to_update_lines.append(new_line)
 
     old_lines = [old_line["line"] for old_line in existing_lines]
@@ -301,20 +305,20 @@ async def update_purchase_order(request: Request):
         new_line for new_line in po_rows if new_line["line"] not in old_lines]
 
     if len(to_update_lines) > 0:
-        update_cmd = """update purchase_order_lines 
+        update_cmd = """update purchase_order_lines
             set line = new_lines.line,
                 album_id = new_lines.album_id,
                 quantity = new_lines.quantity,
                 confirmed_quantity = new_lines.confirmed_quantity,
                 line_total = new_lines.line_total
-                from (select 
+                from (select
                     unnest(%s) as line,
                     unnest(%s) as album_id,
                     unnest(%s) as quantity,
                     unnest(%s) as line_total,
-                    unnest(%s::smallint[]) as confirmed_quantity) 
+                    unnest(%s::smallint[]) as confirmed_quantity)
                 as new_lines
-            where purchase_order_lines.purchase_order=%s and 
+            where purchase_order_lines.purchase_order=%s and
             purchase_order_lines.line = new_lines.line;"""
 
         update_lines = dict_list_to_matrix(to_update_lines)
@@ -322,13 +326,16 @@ async def update_purchase_order(request: Request):
 
     if len(to_add_lines) > 0:
         insert_lines = dict_list_to_matrix(to_add_lines)
-        insert_cmd = """insert into purchase_order_lines 
-            (line,album_id,quantity,line_total,confirmed_quantity,purchase_order) 
+        insert_cmd = """insert into purchase_order_lines
+            (line,album_id,quantity,line_total,confirmed_quantity,purchase_order)
             select unnest(%s),unnest(%s),unnest(%s),unnest(%s),unnest(%s::smallint[]),%s;
             """
         cursor.execute(insert_cmd, (*insert_lines, form["purchase_order"]))
 
-    if len(po_rows) < len(existing_lines) and len(to_add_lines) == 0:
+    should_delete_lines = len(po_rows) < len(
+        existing_lines) and len(to_add_lines) == 0
+
+    if should_delete_lines:
         new_albums = [new_line["album_id"] for new_line in po_rows]
         to_delete_lines = [old_line["line"]
                            for old_line in existing_lines if old_line["album_id"] not in new_albums]
@@ -336,7 +343,15 @@ async def update_purchase_order(request: Request):
         delete_cmd = "delete from purchase_order_lines where line in (select unnest(ARRAY[%s])) and purchase_order = %s;"
         cursor.execute(delete_cmd, (*to_delete_lines, form["purchase_order"]))
 
-    return JSONResponse({"detail": "hey"}, 200)
+    if any([to_update_lines, to_add_lines, should_delete_lines]):
+        new_modified = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        update_po_cmd = "update purchase_orders set modified = %s where purchase_order = %s;"
+        cursor.execute(update_po_cmd, (form["purchase_order"], new_modified))
+        detail = "purchase order %s updated" % form["purchase_order"]
+    else:
+        detail = "nothing to update"
+
+    return JSONResponse({"detail": detail, "purchase_order": form["purchase_order"]}, 200)
 
 
 @admin.post("/purchase-orders")

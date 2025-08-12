@@ -203,7 +203,8 @@ async def merchant_response(request: Request):
                          updated_row["confirmed_quantity"])
 
     status = "confirmed" if all(confirmed) else "pending-buyer"
-    update_cmd = "update purchase_orders set status=%s where purchase_order=%s;"
-    cursor.execute(update_cmd, (status, payload["purchase_order_id"]))
+    update_cmd = "update purchase_orders set status=%s,modified=%s where purchase_order=%s;"
+    cursor.execute(
+        update_cmd, (status, payload["modified"], payload["purchase_order_id"]))
 
     return JSONResponse({"detail": "purchase order %s updated" % payload["purchase_order_id"]}, 200)

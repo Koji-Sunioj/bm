@@ -364,11 +364,13 @@ const sendOrder = async (event) => {
     body: currentForm,
   });
   const { status } = request;
-  const { detail, purchase_order } = await request.json();
-  alert(detail);
 
   if (status === 200) {
+    const { detail, purchase_order } = await request.json();
     window.location.search = `?action=view&purchase_order=${purchase_order}`;
+    alert(detail);
+  } else if (status === 204) {
+    alert("no changes made");
   }
 
   document.getElementById("line-form").disabled = false;

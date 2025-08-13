@@ -6,7 +6,7 @@ from utils import *
 from db_functions import cursor
 from datetime import datetime, timezone
 from fastapi.responses import JSONResponse
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, Response
 
 
 admin = APIRouter(prefix="/api/admin",
@@ -278,31 +278,32 @@ async def get_purchase_order_line(purchase_order, album_id):
 async def update_purchase_order(request: Request):
     form = await request.form()
     po_rows = form_po_rows_to_list(form)
+    keys = ['line', 'album_id', 'quantity', 'line_total']
+    db_rows = [dict(filter(lambda item: item[0] in keys, line.items()))
+               for line in po_rows]
 
     cmd = "select line,album_id,quantity,line_total::float,confirmed_quantity from purchase_order_lines where purchase_order = %s;"
     cursor.execute(cmd, (form["purchase_order"],))
     existing_lines = cursor.fetchall()
 
-    for n, new_line in enumerate(po_rows):
+    for n, new_line in enumerate(db_rows):
         confirmed_value = [i["confirmed_quantity"]
                            for i in existing_lines if i["album_id"] == new_line["album_id"]]
         new_line["confirmed_quantity"] = confirmed_value[0] if len(
             confirmed_value) == 1 else None
-        po_rows[n] = new_line
+        db_rows[n] = new_line
 
     to_update_lines = []
 
-    for new_line, old_line in zip(po_rows, existing_lines):
+    for new_line, old_line in zip(db_rows, existing_lines):
         old_values = list(old_line.values())[:-1]
-        new_values = [new_line["line"], new_line["album_id"], new_line["quantity"],
-                      new_line["line_total"]]
-
+        new_values = list(new_line.values())[:-1]
         if new_values != old_values:
             to_update_lines.append(new_line)
 
     old_lines = [old_line["line"] for old_line in existing_lines]
     to_add_lines = [
-        new_line for new_line in po_rows if new_line["line"] not in old_lines]
+        new_line for new_line in db_rows if new_line["line"] not in old_lines]
 
     if len(to_update_lines) > 0:
         update_cmd = """update purchase_order_lines
@@ -336,7 +337,7 @@ async def update_purchase_order(request: Request):
         existing_lines) and len(to_add_lines) == 0
 
     if should_delete_lines:
-        new_albums = [new_line["album_id"] for new_line in po_rows]
+        new_albums = [new_line["album_id"] for new_line in db_rows]
         to_delete_lines = [old_line["line"]
                            for old_line in existing_lines if old_line["album_id"] not in new_albums]
 
@@ -345,13 +346,26 @@ async def update_purchase_order(request: Request):
 
     if any([to_update_lines, to_add_lines, should_delete_lines]):
         new_modified = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        update_po_cmd = "update purchase_orders set modified = %s where purchase_order = %s;"
-        cursor.execute(update_po_cmd, (form["purchase_order"], new_modified))
-        detail = "purchase order %s updated" % form["purchase_order"]
-    else:
-        detail = "nothing to update"
+        update_po_cmd = "update purchase_orders set modified = %s, status = %s where purchase_order = %s returning purchase_order,modified,status;"
+        cursor.execute(update_po_cmd, (new_modified,
+                       'pending-supplier', form["purchase_order"]))
+        inserted = cursor.fetchone()
 
-    return JSONResponse({"detail": detail, "purchase_order": form["purchase_order"]}, 200)
+        payload = json.dumps({
+            "client_id": "bm-prod" if os.path.exists('/var/lib/cloud/instance') else "bm-dev",
+            "purchase_order_id": inserted["purchase_order"],
+            "status": inserted["status"],
+            "modified": inserted["modified"].strftime("%Y-%m-%d %H:%M:%S"),
+            "data": po_rows
+        })
+        print(payload)
+
+        response = JSONResponse({"detail":  "purchase order %s updated" %
+                                form["purchase_order"], "purchase_order": form["purchase_order"]}, 200)
+    else:
+        response = Response(status_code=204)
+
+    return response
 
 
 @admin.post("/purchase-orders")
@@ -378,11 +392,8 @@ async def send_purchase_order(request: Request):
 
     cursor.execute(inserts)
 
-    client_id = "bm-prod" if os.path.exists(
-        '/var/lib/cloud/instance') else "bm-dev"
-
     payload = json.dumps({
-        "client_id": client_id,
+        "client_id": "bm-prod" if os.path.exists('/var/lib/cloud/instance') else "bm-dev",
         "purchase_order_id": inserted["purchase_order"],
         "status": inserted["status"],
         "modified": inserted["modified"].strftime("%Y-%m-%d %H:%M:%S"),

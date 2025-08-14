@@ -282,7 +282,7 @@ async def update_purchase_order(request: Request):
     db_rows = [dict(filter(lambda item: item[0] in keys, line.items()))
                for line in po_rows]
 
-    cmd = "select line,album_id,quantity,line_total::float,confirmed_quantity from purchase_order_lines where purchase_order = %s;"
+    cmd = "select line,album_id,quantity,line_total::float,confirmed_quantity from purchase_order_lines where purchase_order = %s order by line asc;"
     cursor.execute(cmd, (form["purchase_order"],))
     existing_lines = cursor.fetchall()
 
@@ -358,7 +358,12 @@ async def update_purchase_order(request: Request):
             "modified": inserted["modified"].strftime("%Y-%m-%d %H:%M:%S"),
             "data": po_rows
         })
-        print(payload)
+
+        headers = {"Authorization": get_hmac(payload)}
+        lambda_response = requests.put(dotenv_values(".env")[
+                                       "LAMBDA_SERVER"]+"/client/purchase-orders", data=payload, headers=headers)
+        response = {"detail": lambda_response.json()["message"]}
+        print(response)
 
         response = JSONResponse({"detail":  "purchase order %s updated" %
                                 form["purchase_order"], "purchase_order": form["purchase_order"]}, 200)
@@ -400,8 +405,7 @@ async def send_purchase_order(request: Request):
         "data": po_rows
     })
 
-    hmac_hex = get_hmac(payload)
-    headers = {"Authorization": hmac_hex}
+    headers = {"Authorization": get_hmac(payload)}
 
     lambda_response = requests.put(dotenv_values(
         ".env")["LAMBDA_SERVER"]+"/client/purchase-orders", data=payload, headers=headers)

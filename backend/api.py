@@ -46,7 +46,7 @@ async def get_album(album_id, request: Request, cart: str = None, previews: str 
 
 @api.get("/albums")
 @db_functions.tsql
-async def get_albums(page: int = 1, sort: str = "name", direction: str = "ascending", query: str = None):
+async def get_albums(request: Request, page: int = 1, sort: str = "name", direction: str = "ascending", query: str = None):
     albums = {}
     cursor.callproc("get_pages", ('albums', query,))
     albums["pages"] = cursor.fetchone()["pages"]
@@ -58,17 +58,13 @@ async def get_albums(page: int = 1, sort: str = "name", direction: str = "ascend
 @api.post("/sign-in")
 @db_functions.tsql
 async def sign_in(request: Request):
-    verified = False
     content = await request.json()
     cursor.callproc("get_user", (content["username"], "password"))
 
     try:
         user = cursor.fetchone()["bm_user"]
-        verified = pwd_context.verify(content["password"], user["password"])
+        pwd_context.verify(content["password"], user["password"])
     except:
-        verified = False
-
-    if not verified:
         return JSONResponse({"detail": "cannot sign in"}, 401)
 
     now = datetime.now(timezone.utc)

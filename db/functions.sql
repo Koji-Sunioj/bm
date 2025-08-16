@@ -297,12 +297,12 @@ $$
     where sub.album_id = albums.album_id returning albums.stock as remaining, sub.quantity as cart;
 $$ language sql;
 
-create function update_modified(in album_id int,out title varchar) as
+create function update_modified(in album_id int,out title varchar, out album_id smallint) as
 $$  
     with updated as (
     update albums set modified = now() at time zone 'utc'
     where album_id = $1 returning *)
-    select title from updated join artists on artists.artist_id = updated.artist_id;
+    select title, album_id from updated join artists on artists.artist_id = updated.artist_id;
 $$ language sql;
 
 create function insert_album(in title varchar,in release_year int,in price double precision,

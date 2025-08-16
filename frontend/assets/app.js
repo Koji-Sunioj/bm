@@ -345,21 +345,32 @@ const handleAddDelButtons = () => {
 
 const sendOrder = async (event) => {
   event.preventDefault();
+  const currentForm = new FormData(event.target);
+  document.getElementById("line-form").disabled = true;
+
   const {
     location: { search },
   } = window;
   const url = new URLSearchParams(search);
-  const method = url.get("action") === "new" ? "POST" : "PATCH";
 
-  const currentForm = new FormData(event.target);
-  document.getElementById("line-form").disabled = true;
+  const purchaseOrder = document.querySelector("[name=purchase_order]").value;
+  currentForm.append("purchase_order", purchaseOrder);
 
-  if (method === "PATCH") {
-    const purchaseOrder = document.querySelector("[name=purchase_order]").value;
-    currentForm.append("purchase_order", purchaseOrder);
+  let method = null;
+  let apiUrl = null;
+
+  if (
+    url.get("action") === "view" &&
+    currentForm.get("purchase_order").length > 0
+  ) {
+    method = "PATCH";
+    apiUrl = `/api/admin/purchase-orders/${currentForm.get("purchase_order")}`;
+  } else if (url.get("action") === "new") {
+    method = "POST";
+    apiUrl = "/api/admin/purchase-orders";
   }
 
-  const request = await fetch("/api/admin/purchase-orders", {
+  const request = await fetch(apiUrl, {
     method: method,
     body: currentForm,
   });
@@ -706,9 +717,19 @@ const sendArtist = async (event) => {
     location: { search },
   } = window;
   const url = new URLSearchParams(search);
-  const method = url.get("action") === "new" ? "POST" : "PATCH";
 
-  const response = await fetch("/api/admin/artists", {
+  let method = null;
+  let apiUrl = null;
+
+  if (url.get("action") === "edit" && currentForm.get("artist_id").length > 0) {
+    method = "PATCH";
+    apiUrl = `/api/admin/artists/${currentForm.get("artist_id")}`;
+  } else if (url.get("action") === "new") {
+    method = "POST";
+    apiUrl = "/api/admin/artists";
+  }
+
+  const response = await fetch(apiUrl, {
     method: method,
     body: currentForm,
   });
@@ -719,9 +740,8 @@ const sendArtist = async (event) => {
 
   fieldSet.disabled = false;
 
-  if (status === 200 && name !== undefined) {
-    const urlParams = `?action=edit&artist_id=${artist_id}`;
-    window.location.search = urlParams;
+  if (status === 200 && artist_id !== undefined) {
+    window.location.search = `?action=edit&artist_id=${artist_id}`;
   }
 };
 
@@ -770,38 +790,42 @@ const sendAlbum = async (event) => {
   const currentForm = new FormData(event.target);
   fieldSet.disabled = true;
 
-  const {
-    location: { search },
-  } = window;
-  const url = new URLSearchParams(search);
-  const method = { edit: "PATCH", new: "POST" }[url.get("action")];
-
   for (var pair of currentForm.entries()) {
     if (typeof pair[1] === "string") {
       currentForm.set(pair[0], pair[1].trim());
     }
   }
 
-  const response = await fetch("/api/admin/albums", {
+  const {
+    location: { search },
+  } = window;
+  const url = new URLSearchParams(search);
+
+  let method = null;
+  let apiUrl = null;
+
+  if (url.get("action") === "edit" && currentForm.get("album_id").length > 0) {
+    method = "PATCH";
+    apiUrl = `/api/admin/albums/${currentForm.get("album_id")}`;
+  } else if (url.get("action") === "new") {
+    method = "POST";
+    apiUrl = "/api/admin/albums";
+  }
+
+  const response = await fetch(apiUrl, {
     method: method,
     body: currentForm,
   });
   const { status } = response;
-  const { detail, title, album_id } = await response.json();
-
-  fieldSet.disabled = false;
+  const { detail, album_id } = await response.json();
 
   alert(detail);
 
-  if (status === 200) {
-    switch (method) {
-      case "PATCH":
-        window.location.reload();
-        break;
-      case "POST":
-        window.location.search = `?action=edit&album_id=${album_id}`;
-        break;
-    }
+  fieldSet.disabled = false;
+
+  if (status === 200 && album_id !== undefined) {
+    console.log("asd");
+    window.location.search = `?action=edit&album_id=${album_id}`;
   }
 };
 

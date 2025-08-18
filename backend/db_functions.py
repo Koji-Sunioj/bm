@@ -1,5 +1,6 @@
 import time
 import psycopg2
+import traceback
 import psycopg2.extras
 from functools import wraps
 from dotenv import dotenv_values
@@ -31,6 +32,7 @@ def tsql(function):
                 error.__class__.__name__, function.__name__)
             print("error type and function: " + error_string)
             print(error)
+            print(traceback.format_exc())
             match error_string:
                 case "UniqueViolation register" | "AuthorizationError register":
                     return JSONResponse({"detail": "not on guest list or username is taken"}, 401)

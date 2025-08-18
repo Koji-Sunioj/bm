@@ -378,8 +378,10 @@ const sendOrder = async (event) => {
 
   if (status === 200) {
     const { detail, purchase_order } = await request.json();
-    window.location.search = `?action=view&purchase_order=${purchase_order}`;
     alert(detail);
+    if (purchase_order != undefined) {
+      window.location.search = `?action=view&purchase_order=${purchase_order}`;
+    }
   } else if (status === 204) {
     alert("no changes made");
   }

@@ -123,8 +123,14 @@ def form_songs_to_list(form, new_album_id=None):
     return songs
 
 
-def get_track(n):
-    return n["track"]
+def search(dicts, key, value, return_value=None):
+    try:
+        if return_value != None:
+            return next(n for n in dicts if n[key] == value)[return_value]
+        else:
+            return next(n for n in dicts if n[key] == value)
+    except:
+        return None
 
 
 def encode_role(role):

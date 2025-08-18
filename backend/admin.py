@@ -254,6 +254,21 @@ async def get_purchase_order(purchase_order):
     return JSONResponse(purchase_order, 200)
 
 
+@admin.get("/purchase-orders/{purchase_order}/{album_id}")
+@db_functions.tsql
+async def get_purchase_order_line(purchase_order, album_id):
+    cmd = "select album_id,quantity,confirmed_quantity,line_total::float \
+        from purchase_orders join purchase_order_lines on \
+        purchase_orders.purchase_order = purchase_order_lines.purchase_order \
+        where purchase_orders.purchase_order = %s and album_id = %s;"
+
+    cursor.execute(cmd, (purchase_order, album_id))
+    line_item = cursor.fetchone()
+    response = line_item if line_item != None else {"lines": 0}
+
+    return JSONResponse(response, 200)
+
+
 @admin.post("/purchase-orders")
 @admin.patch("/purchase-orders/{purchase_order}")
 @db_functions.tsql
@@ -290,15 +305,34 @@ async def send_purchase_order(request: Request, purchase_order=None):
             db_rows = [dict(filter(lambda item: item[0] in keys, line.items()))
                        for line in po_rows]
 
+            check_cmd = """with results as (select
+                (select count(purchase_order_lines.album_id) from purchase_order_lines
+                join purchase_orders on purchase_orders.purchase_order = purchase_order_lines.purchase_order
+                where purchase_order_lines.purchase_order != %s and album_id = any(%s) and status != 'confirmed') as count,
+                (select status from purchase_orders where purchase_order = %s) as status)
+                select count,status from results;
+                """
+            cursor.execute(check_cmd, (purchase_order, [
+                           row["album_id"] for row in db_rows], purchase_order))
+            existing_pos = cursor.fetchone()
+
+            if existing_pos["status"] == "confirmed":
+                return JSONResponse({"detail": "this purchase order is already completed"})
+
+            elif existing_pos["status"] == "pending-supplier":
+                return JSONResponse({"detail": "this purchase order is waiting on the supplier to confirm line items"})
+
+            if existing_pos["count"] != 0:
+                return JSONResponse({"detail": "other unconfirmed orders exists for the referenced albums. wait for those to be completed first"})
+
             cmd = "select line,album_id,quantity,line_total::float,confirmed_quantity from purchase_order_lines where purchase_order = %s order by line asc;"
             cursor.execute(cmd, (purchase_order,))
             existing_lines = cursor.fetchall()
 
             for n, new_line in enumerate(db_rows):
-                confirmed_value = [i["confirmed_quantity"]
-                                   for i in existing_lines if i["album_id"] == new_line["album_id"]]
-                new_line["confirmed_quantity"] = confirmed_value[0] if len(
-                    confirmed_value) == 1 else None
+                confirmed_quantity = search(
+                    existing_lines, "album_id", new_line["album_id"], "confirmed_quantity")
+                new_line["confirmed_quantity"] = confirmed_quantity
                 db_rows[n] = new_line
 
             to_update_lines = []
@@ -344,19 +378,20 @@ async def send_purchase_order(request: Request, purchase_order=None):
                 cursor.execute(insert_cmd, (*insert_lines, purchase_order))
 
             if should_delete_lines:
-                new_albums = [new_line["album_id"] for new_line in db_rows]
+
+                new_lines = [new_line["line"] for new_line in db_rows]
                 to_delete_lines = [old_line["line"]
-                                   for old_line in existing_lines if old_line["album_id"] not in new_albums]
+                                   for old_line in existing_lines if old_line["line"] not in new_lines]
 
                 delete_cmd = "delete from purchase_order_lines where line in (select unnest(ARRAY[%s])) and purchase_order = %s;"
-                cursor.execute(delete_cmd, (*to_delete_lines, purchase_order))
+                cursor.execute(delete_cmd, (to_delete_lines, purchase_order))
 
             if any([to_update_lines, to_add_lines, should_delete_lines]):
                 new_modified = datetime.now(
                     timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
                 update_po_cmd = "update purchase_orders set modified = %s, status = %s where purchase_order = %s returning purchase_order,modified,status;"
                 cursor.execute(update_po_cmd, (new_modified,
-                               'pending-supplier', purchase_order))
+                                               'pending-supplier', purchase_order))
                 inserted = cursor.fetchone()
 
             else:
@@ -370,10 +405,8 @@ async def send_purchase_order(request: Request, purchase_order=None):
         "data": po_rows
     })
 
-    headers = {"Authorization": get_hmac(payload)}
-
     lambda_response = requests.put(dotenv_values(".env")[
-                                   "LAMBDA_SERVER"]+"/client/purchase-orders", data=payload, headers=headers)
+        "LAMBDA_SERVER"]+"/client/purchase-orders", data=payload, headers={"Authorization": get_hmac(payload)})
 
     response = {"detail": lambda_response.json()["message"]}
 

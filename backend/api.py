@@ -172,7 +172,6 @@ async def register(request: Request):
 @db_functions.tsql
 async def merchant_response(request: Request):
     payload = await request.json()
-    print(payload)
     check_hmac(json.dumps(payload), request.headers["authorization"])
     lines = [line["line"] for line in payload["lines"]]
     confirmed_qtys = [line["confirmed"] for line in payload["lines"]]
@@ -190,7 +189,6 @@ async def merchant_response(request: Request):
     from updated
     order by updated.line asc;
     """
-    print(cursor.query)
     cursor.execute(update_cmd, (lines, confirmed_qtys,
                    payload["purchase_order_id"]))
     updated_rows = cursor.fetchall()

@@ -280,6 +280,16 @@ async def send_purchase_order(request: Request, purchase_order=None):
     payload = {}
     inserted = None
 
+    check_cmd = """select count(purchase_order_lines.album_id) from purchase_order_lines
+        join purchase_orders on purchase_orders.purchase_order = purchase_order_lines.purchase_order    
+        where purchase_order_lines.purchase_order is distinct from %s and album_id = any(%s) and status != 'confirmed';"""
+    cursor.execute(check_cmd, (purchase_order, [
+                   row["album_id"] for row in po_rows]))
+    other_orders = cursor.fetchone()
+
+    if other_orders["count"] != 0:
+        return JSONResponse({"detail": "other unconfirmed orders exists for the referenced albums. wait for those to be completed first"})
+
     match request.method:
 
         case "POST":
@@ -305,25 +315,15 @@ async def send_purchase_order(request: Request, purchase_order=None):
             db_rows = [dict(filter(lambda item: item[0] in keys, line.items()))
                        for line in po_rows]
 
-            check_cmd = """with results as (select
-                (select count(purchase_order_lines.album_id) from purchase_order_lines
-                join purchase_orders on purchase_orders.purchase_order = purchase_order_lines.purchase_order
-                where purchase_order_lines.purchase_order != %s and album_id = any(%s) and status != 'confirmed') as count,
-                (select status from purchase_orders where purchase_order = %s) as status)
-                select count,status from results;
-                """
-            cursor.execute(check_cmd, (purchase_order, [
-                           row["album_id"] for row in db_rows], purchase_order))
-            existing_pos = cursor.fetchone()
+            check_cmd = "select status from purchase_orders where purchase_order = %s;"
+            cursor.execute(check_cmd, (purchase_order, ))
+            existing_po = cursor.fetchone()
 
-            if existing_pos["status"] == "confirmed":
+            if existing_po["status"] == "confirmed":
                 return JSONResponse({"detail": "this purchase order is already completed"})
 
-            elif existing_pos["status"] == "pending-supplier":
+            elif existing_po["status"] == "pending-supplier":
                 return JSONResponse({"detail": "this purchase order is waiting on the supplier to confirm line items"})
-
-            if existing_pos["count"] != 0:
-                return JSONResponse({"detail": "other unconfirmed orders exists for the referenced albums. wait for those to be completed first"})
 
             cmd = "select line,album_id,quantity,line_total::float,confirmed_quantity from purchase_order_lines where purchase_order = %s order by line asc;"
             cursor.execute(cmd, (purchase_order,))
@@ -346,10 +346,15 @@ async def send_purchase_order(request: Request, purchase_order=None):
             old_lines = [old_line["line"] for old_line in existing_lines]
             to_add_lines = [
                 new_line for new_line in db_rows if new_line["line"] not in old_lines]
-            should_delete_lines = len(po_rows) < len(
-                existing_lines) and len(to_add_lines) == 0
 
-            if len(to_update_lines) > 0:
+            new_lines = [new_line["line"] for new_line in db_rows]
+            to_delete_lines = [old_line["line"]
+                               for old_line in existing_lines if old_line["line"] not in new_lines]
+
+            action = {"update": len(to_update_lines) > 0, "add": len(
+                to_add_lines) > 0, "delete": len(to_delete_lines) > 0}
+
+            if action["update"]:
                 update_cmd = """update purchase_order_lines
                     set line = new_lines.line,
                         album_id = new_lines.album_id,
@@ -369,7 +374,7 @@ async def send_purchase_order(request: Request, purchase_order=None):
                 update_lines = dict_list_to_matrix(to_update_lines)
                 cursor.execute(update_cmd, (*update_lines, purchase_order))
 
-            if len(to_add_lines) > 0:
+            if action["add"]:
                 insert_lines = dict_list_to_matrix(to_add_lines)
                 insert_cmd = """insert into purchase_order_lines
                     (line,album_id,quantity,line_total,confirmed_quantity,purchase_order)
@@ -377,16 +382,11 @@ async def send_purchase_order(request: Request, purchase_order=None):
                     """
                 cursor.execute(insert_cmd, (*insert_lines, purchase_order))
 
-            if should_delete_lines:
-
-                new_lines = [new_line["line"] for new_line in db_rows]
-                to_delete_lines = [old_line["line"]
-                                   for old_line in existing_lines if old_line["line"] not in new_lines]
-
+            elif action["delete"]:
                 delete_cmd = "delete from purchase_order_lines where line in (select unnest(ARRAY[%s])) and purchase_order = %s;"
                 cursor.execute(delete_cmd, (to_delete_lines, purchase_order))
 
-            if any([to_update_lines, to_add_lines, should_delete_lines]):
+            if any(action.values()):
                 new_modified = datetime.now(
                     timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
                 update_po_cmd = "update purchase_orders set modified = %s, status = %s where purchase_order = %s returning purchase_order,modified,status;"
@@ -395,7 +395,7 @@ async def send_purchase_order(request: Request, purchase_order=None):
                 inserted = cursor.fetchone()
 
             else:
-                return Response(status_code=204)
+                return JSONResponse({"detail": "no changes made"})
 
     payload = json.dumps({
         "client_id": "bm-prod" if os.path.exists('/var/lib/cloud/instance') else "bm-dev",

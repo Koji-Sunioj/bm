@@ -21,8 +21,6 @@ fe_secret = dotenv_values(".env")["FE_SECRET"]
 async def get_artist(artist_id, view: str):
     cursor.callproc("get_artist", (artist_id, view))
     artist = cursor.fetchone()
-    if artist == None:
-        return Response(status_code=404)
     return JSONResponse(artist, 200)
 
 

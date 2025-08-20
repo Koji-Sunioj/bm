@@ -454,33 +454,30 @@ const renderPurchaseForm = async () => {
       newOption.value = artist_id;
       artistSelect.appendChild(newOption);
     });
-    const albumsUrl = `/api/artists/${artistSelect.value}?view=user`;
 
-    const response = await fetch(albumsUrl);
-    const { status } = response;
+    const {
+      artist: { albums },
+    } = await fetch(`/api/artists/${artistSelect.value}?view=user`).then(
+      (response) => response.json()
+    );
 
-    if (status === 200) {
-      const {
-        artist: { albums },
-      } = await response.json();
+    const albumSelect = document.querySelector("[name=album_id]");
+    albums.forEach((album) => {
+      const { album_id, title } = album;
+      const newOption = element("option");
+      newOption.innerHTML = title;
+      newOption.value = album_id;
+      albumSelect.appendChild(newOption);
+    });
+    const firstAlbum = albums.find(
+      (album) => album.album_id === Number(albumSelect.value)
+    );
 
-      const albumSelect = document.querySelector("[name=album_id]");
-      albums.forEach((album) => {
-        const { album_id, title } = album;
-        const newOption = element("option");
-        newOption.innerHTML = title;
-        newOption.value = album_id;
-        albumSelect.appendChild(newOption);
-      });
-      const firstAlbum = albums.find(
-        (album) => album.album_id === Number(albumSelect.value)
-      );
-
-      document.querySelector("[name=stock]").value = firstAlbum.stock;
-      document.querySelector("[name=price]").value = firstAlbum.price;
-      document.getElementById("add-line").style.display = "block";
-      handleAddDelButtons();
-    }
+    const { stock, price } = firstAlbum || { stock: 0, price: 0 };
+    document.querySelector("[name=stock]").value = stock;
+    document.querySelector("[name=price]").value = price;
+    handleAddDelButtons();
+    document.getElementById("add-line").style.display = "block";
   } else {
     document.getElementById("line-form").disabled = true;
     document.getElementById("po-form").disabled = true;
@@ -496,34 +493,30 @@ const changeAlbums = async (event) => {
   });
 
   if (albumSelect.childNodes.length === 0) {
-    const albumsUrl = `/api/artists/${event.target.value}?view=user`;
+    const response = await fetch(
+      `/api/artists/${event.target.value}?view=user`
+    );
+    const {
+      artist: { albums },
+    } = await response.json();
 
-    const response = await fetch(albumsUrl);
-    const { status } = response;
+    albums.forEach((album) => {
+      const { album_id, title } = album;
+      const newOption = element("option");
+      newOption.innerHTML = title;
+      newOption.value = album_id;
+      albumSelect.appendChild(newOption);
+    });
 
-    if (status === 200) {
-      const {
-        artist: { albums },
-      } = await response.json();
-
-      albums.forEach((album) => {
-        const { album_id, title } = album;
-        const newOption = element("option");
-        newOption.innerHTML = title;
-        newOption.value = album_id;
-        albumSelect.appendChild(newOption);
-      });
-
-      const firstAlbum = albums.find(
-        (album) => album.album_id === Number(albumSelect.value)
-      );
-
-      document.querySelector("[name=stock]").value = firstAlbum.stock;
-      document.querySelector("[name=price]").value = firstAlbum.price;
-      handleAddDelButtons();
-      fieldSet.disabled = false;
-    }
+    const firstAlbum = albums.find(
+      (album) => album.album_id === Number(albumSelect.value)
+    );
+    const { stock, price } = firstAlbum || { stock: 0, price: 0 };
+    document.querySelector("[name=stock]").value = stock;
+    document.querySelector("[name=price]").value = price;
+    handleAddDelButtons();
   }
+  fieldSet.disabled = false;
 };
 
 const changeAlbum = async (event) => {
@@ -836,7 +829,6 @@ const sendAlbum = async (event) => {
   fieldSet.disabled = false;
 
   if (status === 200 && album_id !== undefined) {
-    console.log("asd");
     window.location.search = `?action=edit&album_id=${album_id}`;
   }
 };

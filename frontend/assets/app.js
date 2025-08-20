@@ -497,29 +497,32 @@ const changeAlbums = async (event) => {
 
   if (albumSelect.childNodes.length === 0) {
     const albumsUrl = `/api/artists/${event.target.value}?view=user`;
+
     const response = await fetch(albumsUrl);
-    const {
-      artist: { albums },
-    } = await response.json();
+    const { status } = response;
 
-    albums.forEach((album) => {
-      const { album_id, title } = album;
-      const newOption = element("option");
-      newOption.innerHTML = title;
-      newOption.value = album_id;
-      albumSelect.appendChild(newOption);
-    });
+    if (status === 200) {
+      const {
+        artist: { albums },
+      } = await response.json();
 
-    //add button
-    const firstAlbum = albums.find(
-      (album) => album.album_id === Number(albumSelect.value)
-    );
+      albums.forEach((album) => {
+        const { album_id, title } = album;
+        const newOption = element("option");
+        newOption.innerHTML = title;
+        newOption.value = album_id;
+        albumSelect.appendChild(newOption);
+      });
 
-    document.querySelector("[name=stock]").value = firstAlbum.stock;
-    document.querySelector("[name=price]").value = firstAlbum.price;
+      const firstAlbum = albums.find(
+        (album) => album.album_id === Number(albumSelect.value)
+      );
 
-    handleAddDelButtons();
-    fieldSet.disabled = false;
+      document.querySelector("[name=stock]").value = firstAlbum.stock;
+      document.querySelector("[name=price]").value = firstAlbum.price;
+      handleAddDelButtons();
+      fieldSet.disabled = false;
+    }
   }
 };
 

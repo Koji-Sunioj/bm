@@ -456,26 +456,31 @@ const renderPurchaseForm = async () => {
     });
     const albumsUrl = `/api/artists/${artistSelect.value}?view=user`;
 
-    const {
-      artist: { albums },
-    } = await fetch(albumsUrl).then((response) => response.json());
+    const response = await fetch(albumsUrl);
+    const { status } = response;
 
-    const albumSelect = document.querySelector("[name=album_id]");
-    albums.forEach((album) => {
-      const { album_id, title } = album;
-      const newOption = element("option");
-      newOption.innerHTML = title;
-      newOption.value = album_id;
-      albumSelect.appendChild(newOption);
-    });
-    const firstAlbum = albums.find(
-      (album) => album.album_id === Number(albumSelect.value)
-    );
+    if (status === 200) {
+      const {
+        artist: { albums },
+      } = await response.json();
 
-    document.querySelector("[name=stock]").value = firstAlbum.stock;
-    document.querySelector("[name=price]").value = firstAlbum.price;
-    document.getElementById("add-line").style.display = "block";
-    handleAddDelButtons();
+      const albumSelect = document.querySelector("[name=album_id]");
+      albums.forEach((album) => {
+        const { album_id, title } = album;
+        const newOption = element("option");
+        newOption.innerHTML = title;
+        newOption.value = album_id;
+        albumSelect.appendChild(newOption);
+      });
+      const firstAlbum = albums.find(
+        (album) => album.album_id === Number(albumSelect.value)
+      );
+
+      document.querySelector("[name=stock]").value = firstAlbum.stock;
+      document.querySelector("[name=price]").value = firstAlbum.price;
+      document.getElementById("add-line").style.display = "block";
+      handleAddDelButtons();
+    }
   } else {
     document.getElementById("line-form").disabled = true;
     document.getElementById("po-form").disabled = true;

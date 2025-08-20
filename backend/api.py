@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from datetime import timedelta, datetime, timezone
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends, Response
 
 api = APIRouter(prefix="/api")
 
@@ -21,6 +21,8 @@ fe_secret = dotenv_values(".env")["FE_SECRET"]
 async def get_artist(artist_id, view: str):
     cursor.callproc("get_artist", (artist_id, view))
     artist = cursor.fetchone()
+    if artist == None:
+        return Response(status_code=404)
     return JSONResponse(artist, 200)
 
 

@@ -28,16 +28,16 @@ def tsql(function):
             return executed
         except Exception as error:
             conn.rollback()
-            error_string = "%s %s" % (
-                error.__class__.__name__, function.__name__)
-            print("error type and function: " + error_string)
-            print(error)
+            error_string = "error type %s occurred on function %s. detail: %s" % (
+                error.__class__.__name__, function.__name__, error)
+            print(error_string)
             print(traceback.format_exc())
             match error_string:
                 case "UniqueViolation register" | "AuthorizationError register":
                     return JSONResponse({"detail": "not on guest list or username is taken"}, 401)
                 case "Exception merchant_response":
                     return JSONResponse({"detail": "invalid merchant credentials"}, 401)
-            return False
+                case _:
+                    return JSONResponse({"detail": str(error)}, 400)
 
     return transaction

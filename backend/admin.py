@@ -276,23 +276,17 @@ async def send_purchase_order(request: Request, purchase_order=None):
     form = await request.form()
     po_rows = form_po_rows_to_list(form)
 
-    response = {}
-    payload = {}
     inserted = None
 
-    check_cmd = """select count(purchase_order_lines.album_id) from purchase_order_lines
-        join purchase_orders on purchase_orders.purchase_order = purchase_order_lines.purchase_order    
-        where purchase_order_lines.purchase_order is distinct from %s and album_id = any(%s) and status != 'confirmed';"""
-    cursor.execute(check_cmd, (purchase_order, [
-                   row["album_id"] for row in po_rows]))
-    other_orders = cursor.fetchone()
-
-    if other_orders["count"] != 0:
-        return JSONResponse({"detail": "other unconfirmed orders exists for the referenced albums. wait for those to be completed first"})
-
     match request.method:
-
         case "POST":
+            check_cmd = "select count(purchase_order) from purchase_orders where status in ('pending-supplier','pending-buyer');"
+            cursor.execute(check_cmd)
+            others_orders = cursor.fetchall()
+
+            if len(others_orders) > 0:
+                return JSONResponse({"detail": "no more than one pending purchase order can exist"})
+
             po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order,modified,status;"
             cursor.execute(po_cmd)
             inserted = cursor.fetchone()
@@ -408,13 +402,16 @@ async def send_purchase_order(request: Request, purchase_order=None):
     lambda_response = requests.put(dotenv_values(".env")[
         "LAMBDA_SERVER"]+"/client/purchase-orders", data=payload, headers={"Authorization": get_hmac(payload)})
 
-    response = {"detail": lambda_response.json()["message"]}
+    if lambda_response.headers.get('content-type') == "application/json":
+        detail = lambda_response.json()["message"]
+    else:
+        detail = "there was an error parsing a response."
 
-    if lambda_response.status_code != 200:
-        return JSONResponse(response, 400)
-
-    response["purchase_order"] = inserted["purchase_order"]
-    return JSONResponse(response, 200)
+    match lambda_response.status_code:
+        case 200:
+            return JSONResponse({"detail": detail, "purchase_order": inserted["purchase_order"]}, 200)
+        case _:
+            raise Exception(detail)
 
 
 @admin.delete("/artists/{artist_id}")

@@ -282,9 +282,9 @@ async def send_purchase_order(request: Request, purchase_order=None):
         case "POST":
             check_cmd = "select count(purchase_order) from purchase_orders where status in ('pending-supplier','pending-buyer');"
             cursor.execute(check_cmd)
-            others_orders = cursor.fetchall()
+            others_orders = cursor.fetchone()["count"]
 
-            if len(others_orders) > 0:
+            if others_orders > 0:
                 return JSONResponse({"detail": "no more than one pending purchase order can exist"})
 
             po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order,modified,status;"

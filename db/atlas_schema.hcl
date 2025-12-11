@@ -100,6 +100,41 @@ table "cart" {
     on_delete   = NO_ACTION
   }
 }
+table "dispatchs" {
+  schema = schema.public
+  column "dispatch_id" {
+    null = false
+    type = uuid
+  }
+  column "purchase_order" {
+    null = true
+    type = integer
+  }
+  column "status" {
+    null = true
+    type = character_varying
+  }
+  column "address" {
+    null = true
+    type = character_varying
+  }
+  column "estimated_receipt" {
+    null = true
+    type = timestamp
+  }
+  primary_key {
+    columns = [column.dispatch_id]
+  }
+  foreign_key "dispatchs_purchase_order_fkey" {
+    columns     = [column.purchase_order]
+    ref_columns = [table.purchase_orders.column.purchase_order]
+    on_update   = NO_ACTION
+    on_delete   = NO_ACTION
+  }
+  check "dispatchs_status_check" {
+    expr = "((status)::text = ANY ((ARRAY['pending-supplier'::character varying, 'shipped'::character varying, 'received'::character varying])::text[]))"
+  }
+}
 table "orders" {
   schema = schema.public
   column "order_id" {
@@ -211,6 +246,14 @@ table "purchase_orders" {
     null    = true
     type    = timestamp
     default = sql("timezone('utc'::text, now())")
+  }
+  column "shipping_cost" {
+    null = true
+    type = numeric(6,2)
+  }
+  column "estimated_receipt" {
+    null = true
+    type = timestamp
   }
   primary_key {
     columns = [column.purchase_order]

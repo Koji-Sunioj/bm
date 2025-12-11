@@ -337,10 +337,36 @@ const handleAddDelButtons = () => {
   }
 
   if (nLines > 1) {
+    document
+      .getElementById("dispatch-button")
+      .classList.remove("disabled-button");
     document.getElementById("po-button").classList.remove("disabled-button");
   } else {
+    document.getElementById("dispatch-button").classList.add("disabled-button");
     document.getElementById("po-button").classList.add("disabled-button");
   }
+};
+
+const getDispatch = async () => {
+  const rows = document.getElementById("purchase-order-lines").children;
+  let items = 0;
+
+  Array.from(rows).forEach((row) => {
+    Array.from(row.children).forEach((td) => {
+      if (
+        td.firstChild.nodeName === "INPUT" &&
+        td.firstChild.name.includes("quantity")
+      ) {
+        items += Number(td.firstChild.value);
+      }
+    });
+  });
+
+  const response = await fetch(`/api/admin/dispatch-cost?items=${items}`);
+  const { estimated_delivery, freight_cost } = await response.json();
+  document.querySelector("[name=dispatch_cost]").value = freight_cost;
+  document.querySelector("[name=estimated_delivery]").value =
+    estimated_delivery;
 };
 
 const sendOrder = async (event) => {
@@ -432,9 +458,7 @@ const renderPurchaseForm = async () => {
         );
         document.getElementById("purchase-order-lines").appendChild(newRow);
       });
-
       break;
-
     case "new":
       h1.innerHTML = `Create a new purchase order`;
       addable = true;

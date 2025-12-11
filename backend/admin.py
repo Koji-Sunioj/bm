@@ -269,6 +269,22 @@ async def get_purchase_order_line(purchase_order, album_id):
     return JSONResponse(response, 200)
 
 
+@admin.get("/dispatch-cost")
+async def get_dispatch_costs(items: str = None):
+    params = {
+        "client_id": "bm-prod" if os.path.exists('/var/lib/cloud/instance') else "bm-dev",
+        "items": items
+    }
+
+    lambda_response = requests.get(dotenv_values(".env")[
+        "LAMBDA_SERVER"]+"/client/dispatch-cost", headers={"Authorization": get_hmac(params)}, params=params)
+
+    if lambda_response.status_code != 200:
+        raise Exception("there was an error in the request")
+
+    return JSONResponse(lambda_response.json())
+
+
 @admin.post("/purchase-orders")
 @admin.patch("/purchase-orders/{purchase_order}")
 @db_functions.tsql

@@ -19,7 +19,6 @@
     <form onsubmit="addLine(event)">
       <fieldset id="po-form">
         <div id="po-details">
-          <p>purchase order details</p>
           <div class="form-field">
             <label for="purchase_order">purchase order</label>
             <input type="text" name="purchase_order" readonly />
@@ -33,9 +32,28 @@
             <input type="text" name="status" readonly />
           </div>
         </div>
+        <div id="dispatch-details">
+          <h2>dispatch</h2>
+          <div class="form-field">
+            <label for="dispatch_cost">shipment costs</label>
+            <input
+              type="text"
+              name="dispatch_cost"
+              style="background-color: grey"
+            />
+          </div>
+          <div class="form-field">
+            <label for="estimated_delivery">estimated delivery</label>
+            <input
+              type="text"
+              name="estimated_delivery"
+              style="background-color: grey"
+            />
+          </div>
+        </div>
         <hr />
         <div id="add-line">
-          <p>add to purchase order</p>
+          <h2>add to purchase order</h2>
           <div class="form-field">
             <label for="name">artist</label>
             <select name="artist_id" onchange="changeAlbums(event)"></select>
@@ -80,6 +98,14 @@
             onclick="deleteLine()"
           >
             Decrement order line
+          </button>
+          <button
+            type="button"
+            class="disabled-button"
+            id="dispatch-button"
+            onclick="getDispatch()"
+          >
+            Calculate dispatch
           </button>
         </div>
       </fieldset>

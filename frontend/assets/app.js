@@ -299,6 +299,7 @@ const deleteLine = () => {
   }
 
   handleAddDelButtons();
+  resestCosts();
 };
 
 const handleAddDelButtons = () => {
@@ -340,11 +341,22 @@ const handleAddDelButtons = () => {
     document
       .getElementById("dispatch-button")
       .classList.remove("disabled-button");
-    document.getElementById("po-button").classList.remove("disabled-button");
   } else {
     document.getElementById("dispatch-button").classList.add("disabled-button");
-    document.getElementById("po-button").classList.add("disabled-button");
   }
+};
+
+const resestCosts = () => {
+  [
+    "invoice_total",
+    "line_total",
+    "dispatch_cost",
+    "estimated_delivery",
+  ].forEach((field) => {
+    document.querySelector(`[name=${field}]`).value = null;
+  });
+
+  document.getElementById("po-button").classList.add("disabled-button");
 };
 
 const getDispatch = async () => {
@@ -367,6 +379,23 @@ const getDispatch = async () => {
   document.querySelector("[name=dispatch_cost]").value = freight_cost;
   document.querySelector("[name=estimated_delivery]").value =
     estimated_delivery;
+
+  const invoiceTotal = Array.from(
+    document.getElementById("purchase-order-lines").children
+  ).reduce((reduced, line) => {
+    if (line.children[6].firstChild.value) {
+      return reduced + Number(line.children[6].firstChild.value);
+    } else {
+      return 0;
+    }
+  }, 0);
+
+  document.querySelector("[name=invoice_total]").value = (
+    invoiceTotal + freight_cost
+  ).toFixed(2);
+
+  document.querySelector("[name=line_total]").value = invoiceTotal.toFixed(2);
+  document.getElementById("po-button").classList.remove("disabled-button");
 };
 
 const sendOrder = async (event) => {
@@ -379,8 +408,9 @@ const sendOrder = async (event) => {
   } = window;
   const url = new URLSearchParams(search);
 
-  const purchaseOrder = document.querySelector("[name=purchase_order]").value;
-  currentForm.append("purchase_order", purchaseOrder);
+  ["purchase_order", "estimated_delivery", "dispatch_cost"].forEach((field) => {
+    currentForm.append(field, document.querySelector(`[name=${field}]`).value);
+  });
 
   let method = null;
   let apiUrl = null;
@@ -430,16 +460,32 @@ const renderPurchaseForm = async () => {
   switch (action) {
     case "view":
       h1.innerHTML = `View purchase order`;
-      const { purchase_order, modified, status, lines } = await fetch(
+      const {
+        purchase_order,
+        modified,
+        status,
+        lines,
+        invoice_total,
+        line_total,
+        estimated_receipt,
+        shipping_cost,
+      } = await fetch(
         `/api/admin/purchase-orders/${url.get("purchase_order")}`
       ).then((response) => response.json());
       addable = status === "confirmed" ? false : true;
       document.getElementById("po-details").style.display = "block";
-      document.querySelector("[name=purchase_order]").value = purchase_order;
-      document.querySelector("[name=modified]").value = utcToLocale(
-        new Date(`${modified} UTC`)
-      );
-      document.querySelector("[name=status]").value = status.replace("-", " ");
+
+      for (const [field, value] of Object.entries({
+        purchase_order: purchase_order,
+        modified: modified.substring(0, 16),
+        status: status.replace("-", " "),
+        invoice_total: invoice_total,
+        line_total: line_total,
+        dispatch_cost: shipping_cost,
+        estimated_delivery: estimated_receipt.substring(0, 16),
+      })) {
+        document.querySelector(`[name=${field}]`).value = value;
+      }
 
       lines.forEach((poLine) => {
         const newRow = element("tr");
@@ -658,6 +704,7 @@ const addLine = async (event) => {
     document.getElementById("purchase-order-lines").appendChild(newRow);
   }
   handleAddDelButtons();
+  resestCosts();
 };
 
 const parsePOLine = (values, newRow, nLines) => {

@@ -238,19 +238,24 @@ async def get_purchase_orders():
 @admin.get("/purchase-orders/{purchase_order}")
 @db_functions.tsql
 async def get_purchase_order(purchase_order):
-    cmd = "select purchase_orders.purchase_order, purchase_orders.status,purchase_orders.modified::varchar,\
-        json_agg(json_build_object('line',purchase_order_lines.line,'artist_id',artists.artist_id,\
-        'name',artists.name,'album_id',purchase_order_lines.album_id,'title',albums.title,\
-        'quantity',purchase_order_lines.quantity,'confirmed',purchase_order_lines.confirmed_quantity,\
-        'line_total',purchase_order_lines.line_total) order by purchase_order_lines.line) as lines\
+    cmd = "select purchase_orders.purchase_order, purchase_orders.status,purchase_orders.modified::varchar, \
+		purchase_orders.estimated_receipt::varchar,purchase_orders.shipping_cost::float, \
+        sum(purchase_order_lines.line_total)::float as line_total,\
+        (sum(purchase_order_lines.line_total) + purchase_orders.shipping_cost)::float as invoice_total,\
+        json_agg(json_build_object('line',purchase_order_lines.line,'artist_id',artists.artist_id, \
+        'name',artists.name,'album_id',purchase_order_lines.album_id,'title',albums.title, \
+        'quantity',purchase_order_lines.quantity,'confirmed',purchase_order_lines.confirmed_quantity, \
+        'line_total',purchase_order_lines.line_total) order by purchase_order_lines.line) as lines \
         from purchase_orders join purchase_order_lines on \
         purchase_orders.purchase_order = purchase_order_lines.purchase_order \
         join albums on albums.album_id = purchase_order_lines.album_id \
-        join artists on artists.artist_id = albums.artist_id where purchase_orders.purchase_order = %s \
+        join artists on artists.artist_id = albums.artist_id where purchase_orders.purchase_order = 77 \
         group by purchase_orders.purchase_order;"
 
     cursor.execute(cmd, (purchase_order,))
     purchase_order = cursor.fetchone()
+
+    print(purchase_order)
     return JSONResponse(purchase_order, 200)
 
 
@@ -303,8 +308,10 @@ async def send_purchase_order(request: Request, purchase_order=None):
             if others_orders > 0:
                 return JSONResponse({"detail": "no more than one pending purchase order can exist"})
 
-            po_cmd = "insert into purchase_orders (status) values ('pending-supplier') returning purchase_order,modified,status;"
-            cursor.execute(po_cmd)
+            po_cmd = "insert into purchase_orders (status,shipping_cost,estimated_receipt) values ('pending-supplier',%s,%s) returning purchase_order,modified,status;"
+
+            cursor.execute(
+                po_cmd, (form["dispatch_cost"], form["estimated_delivery"]))
             inserted = cursor.fetchone()
 
             inserts = "insert into purchase_order_lines (line,purchase_order,album_id,quantity,line_total) values "
@@ -397,11 +404,14 @@ async def send_purchase_order(request: Request, purchase_order=None):
                 cursor.execute(delete_cmd, (to_delete_lines, purchase_order))
 
             if any(action.values()):
+                # shipping_cost,estimated_receipt
                 new_modified = datetime.now(
                     timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-                update_po_cmd = "update purchase_orders set modified = %s, status = %s where purchase_order = %s returning purchase_order,modified,status;"
+                update_po_cmd = "update purchase_orders set modified = %s, status = %s, \
+                    shipping_cost = %s,estimated_receipt = %s where purchase_order = %s \
+                    returning purchase_order,modified,status;"
                 cursor.execute(update_po_cmd, (new_modified,
-                                               'pending-supplier', purchase_order))
+                                               'pending-supplier', form["dispatch_cost"], form["estimated_delivery"], purchase_order))
                 inserted = cursor.fetchone()
 
             else:
@@ -412,8 +422,12 @@ async def send_purchase_order(request: Request, purchase_order=None):
         "purchase_order_id": inserted["purchase_order"],
         "status": inserted["status"],
         "modified": inserted["modified"].strftime("%Y-%m-%d %H:%M:%S"),
-        "data": po_rows
+        "data": po_rows,
+        "estimated_delivery": form["estimated_delivery"],
+        "dispatch_cost": float(form["dispatch_cost"])
     })
+
+    print(payload)
 
     lambda_response = requests.put(dotenv_values(".env")[
         "LAMBDA_SERVER"]+"/client/purchase-orders", data=payload, headers={"Authorization": get_hmac(payload)})

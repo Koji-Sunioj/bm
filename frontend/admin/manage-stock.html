@@ -33,13 +33,32 @@
           </div>
         </div>
         <div id="dispatch-details">
-          <h2>dispatch</h2>
+          <h2>costs and dispatch</h2>
+          <div class="form-field">
+            <label for="invoice_total">invoice total</label>
+            <input
+              type="text"
+              name="invoice_total"
+              style="background-color: grey"
+              readonly
+            />
+          </div>
+          <div class="form-field">
+            <label for="line_total">line total</label>
+            <input
+              type="text"
+              name="line_total"
+              style="background-color: grey"
+              readonly
+            />
+          </div>
           <div class="form-field">
             <label for="dispatch_cost">shipment costs</label>
             <input
-              type="text"
+              type="number"
               name="dispatch_cost"
               style="background-color: grey"
+              readonly
             />
           </div>
           <div class="form-field">
@@ -48,6 +67,7 @@
               type="text"
               name="estimated_delivery"
               style="background-color: grey"
+              readonly
             />
           </div>
         </div>

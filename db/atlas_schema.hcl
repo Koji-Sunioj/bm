@@ -100,7 +100,7 @@ table "cart" {
     on_delete   = NO_ACTION
   }
 }
-table "dispatchs" {
+table "dispatches" {
   schema = schema.public
   column "dispatch_id" {
     null = false

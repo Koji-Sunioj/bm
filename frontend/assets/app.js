@@ -376,6 +376,7 @@ const getDispatch = async () => {
 
   const response = await fetch(`/api/admin/dispatch-cost?items=${items}`);
   const { estimated_delivery, freight_cost } = await response.json();
+  console.log(freight_cost);
   document.querySelector("[name=dispatch_cost]").value = freight_cost;
   document.querySelector("[name=estimated_delivery]").value =
     estimated_delivery;
@@ -481,7 +482,7 @@ const renderPurchaseForm = async () => {
         status: status.replace("-", " "),
         invoice_total: invoice_total,
         line_total: line_total,
-        dispatch_cost: shipping_cost,
+        dispatch_cost: shipping_cost.toFixed(2),
         estimated_delivery: estimated_receipt.substring(0, 16),
       })) {
         document.querySelector(`[name=${field}]`).value = value;

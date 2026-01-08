@@ -249,7 +249,7 @@ async def get_purchase_order(purchase_order):
         from purchase_orders join purchase_order_lines on \
         purchase_orders.purchase_order = purchase_order_lines.purchase_order \
         join albums on albums.album_id = purchase_order_lines.album_id \
-        join artists on artists.artist_id = albums.artist_id where purchase_orders.purchase_order = 77 \
+        join artists on artists.artist_id = albums.artist_id where purchase_orders.purchase_order = %s \
         group by purchase_orders.purchase_order;"
 
     cursor.execute(cmd, (purchase_order,))
@@ -404,7 +404,6 @@ async def send_purchase_order(request: Request, purchase_order=None):
                 cursor.execute(delete_cmd, (to_delete_lines, purchase_order))
 
             if any(action.values()):
-                # shipping_cost,estimated_receipt
                 new_modified = datetime.now(
                     timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
                 update_po_cmd = "update purchase_orders set modified = %s, status = %s, \

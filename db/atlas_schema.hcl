@@ -118,21 +118,17 @@ table "dispatches" {
     null = true
     type = character_varying
   }
-  column "estimated_receipt" {
-    null = true
-    type = timestamp
-  }
   primary_key {
     columns = [column.dispatch_id]
   }
-  foreign_key "dispatchs_purchase_order_fkey" {
+  foreign_key "dispatches_purchase_order_fkey" {
     columns     = [column.purchase_order]
     ref_columns = [table.purchase_orders.column.purchase_order]
     on_update   = NO_ACTION
     on_delete   = NO_ACTION
   }
-  check "dispatchs_status_check" {
-    expr = "((status)::text = ANY ((ARRAY['pending-supplier'::character varying, 'shipped'::character varying, 'received'::character varying])::text[]))"
+  check "dispatches_status_check" {
+    expr = "((status)::text = ANY (ARRAY[('pending-supplier'::character varying)::text, ('shipped'::character varying)::text, ('rescheduled'::character varying)::text]))"
   }
 }
 table "orders" {

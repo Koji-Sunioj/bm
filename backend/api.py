@@ -168,9 +168,43 @@ async def register(request: Request):
     return JSONResponse({"detail": detail}, code)
 
 
+@api.patch("/shipment-orders/merchant-response/{dispatch_id}")
+@db_functions.tsql
+async def despatch_update(request: Request, dispatch_id):
+    payload = await request.json()
+
+    if payload["status"] == "rescheduled":
+        update_po_cmd = """update purchase_orders set estimated_delivery = %s where purchase_order \
+            = (select purchase_order from dispatches where dispatch_id = %s);"""
+        cursor.execute(
+            update_po_cmd, (payload["estimated_delivery"], dispatch_id))
+
+    update_dispatch_cmd = "update dispatches set status = %s where dispatch_id = %s;"
+    cursor.execute(update_dispatch_cmd, (payload["status"], dispatch_id))
+
+    return JSONResponse({"detail": "dispatch %s updated with status %s" % (dispatch_id, payload["status"])})
+
+
+@api.post("/shipment-orders/merchant-response")
+@db_functions.tsql
+async def despatch_notification(request: Request):
+    payload = await request.json()
+    check_hmac(json.dumps(payload), request.headers["authorization"])
+    print(payload)
+
+    insert_cmd = """insert into dispatches (dispatch_id,purchase_order,status,address) values \
+        (%s,%s,%s,%s)"""
+
+    cursor.execute(insert_cmd, (payload["dispatch_id"],
+                   payload["purchase_order"], payload["status"], payload["address"]))
+
+    return JSONResponse({"detail": "dispatch %s for purchase order %s received" % (payload["dispatch_id"],
+                                                                                   payload["purchase_order"])}, 200)
+
+
 @api.post("/purchase-orders/merchant-response")
 @db_functions.tsql
-async def merchant_response(request: Request):
+async def order_response(request: Request):
     payload = await request.json()
     check_hmac(json.dumps(payload), request.headers["authorization"])
     lines = [line["line"] for line in payload["lines"]]

@@ -48,12 +48,22 @@
         />
       </div>
       <div>
-        <label for="purchase-orders">view stock requests</label>
+        <label for="purchase-orders">view purchase orders</label>
         <input
           type="radio"
           id="purchase-orders-radio"
           name="form_action"
           value="purchase-orders"
+          onchange="changeView(event)"
+        />
+      </div>
+      <div>
+        <label for="dispatches">view dispatches requests</label>
+        <input
+          type="radio"
+          id="dispatches-radio"
+          name="form_action"
+          value="dispatches"
           onchange="changeView(event)"
         />
       </div>

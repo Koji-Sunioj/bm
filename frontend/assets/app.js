@@ -92,8 +92,9 @@ const renderAdminView = async () => {
 
         const searchParam = query === null ? "" : `&query=${query}`;
         const apiUrl = `/api/admin/artists?page=${page}&sort=${sort}&direction=${direction}${searchParam}`;
-        const response = await fetch(apiUrl);
-        const { artists, pages } = await response.json();
+        const { artists, pages } = await fetch(apiUrl).then((response) =>
+          response.json()
+        );
 
         const [table, tableBody, header] = elements(["table", "tbody", "tr"]);
         putTableHeaders(
@@ -101,12 +102,12 @@ const renderAdminView = async () => {
           header,
           tableBody
         );
+
         table.classList.add("dispatched-table");
 
         artists.forEach((artist) => {
           const artistCopy = { ...artist };
           delete artistCopy.artist_id;
-
           const newRow = element("tr");
           Object.keys(artistCopy).forEach((key) => {
             const newCell = element("td");
@@ -150,8 +151,9 @@ const renderAdminView = async () => {
 
         const searchParam = query === null ? "" : `&query=${query}`;
         const apiUrl = `/api/albums?page=${page}&sort=${sort}&direction=${direction}${searchParam}`;
-        const response = await fetch(apiUrl);
-        const { albums, pages } = await response.json();
+        const { albums, pages } = await fetch(apiUrl).then((response) =>
+          response.json()
+        );
         const headers = [
           "photo",
           "title",
@@ -161,14 +163,13 @@ const renderAdminView = async () => {
           "price",
           "modified",
         ];
-
         const [table, tableBody, header] = elements(["table", "tbody", "tr"]);
+
         putTableHeaders(headers, header, tableBody);
         table.classList.add("dispatched-table");
 
         albums.forEach((album) => {
           const newRow = element("tr");
-
           headers.forEach((header) => {
             const newCell = element("td");
             switch (header) {
@@ -215,13 +216,13 @@ const renderAdminView = async () => {
         );
 
         const headers = ["purchase_order", "modified", "status", "albums"];
-
         const [table, tableBody, header, lineBr] = elements([
           "table",
           "tbody",
           "tr",
           "br",
         ]);
+
         putTableHeaders(headers, header, tableBody);
         table.classList.add("dispatched-table");
         table.appendChild(tableBody);
@@ -257,7 +258,88 @@ const renderAdminView = async () => {
         });
       }
       break;
+    case "dispatches":
+      const apiUrl = `/api/admin/dispatches`;
+      const { dispatches } = await fetch(apiUrl).then((response) =>
+        response.json()
+      );
+      const headers = [
+        "purchase_order",
+        "dispatch_id",
+        "address",
+        "status",
+        "estimated_receipt",
+        "shipping_cost",
+      ];
+      const [table, tableBody, header, lineBr] = elements([
+        "table",
+        "tbody",
+        "tr",
+        "br",
+      ]);
+
+      putTableHeaders(headers, header, tableBody);
+      table.classList.add("dispatched-table");
+      table.appendChild(tableBody);
+      viewDiv.appendChild(lineBr);
+      viewDiv.appendChild(table);
+
+      dispatches.forEach((dispatch) => {
+        const newRow = element("tr");
+        headers.forEach((header) => {
+          const newCell = element("td");
+          switch (header) {
+            case "estimated_receipt":
+              newCell.innerHTML = dispatch[header].substring(0, 16);
+              break;
+            case "status":
+              if (dispatch[header].includes("-")) {
+                newCell.innerHTML = dispatch[header].split("-")[0];
+              } else {
+                newCell.innerHTML = dispatch[header];
+              }
+              break;
+            case "dispatch_id":
+              const button = element("button");
+              button.innerHTML = dispatch[header];
+              button.addEventListener("click", triggerReceipt);
+              button.dispatch_id = dispatch[header];
+
+              if (dispatch["status"] !== "shipped") {
+                button.disabled = true;
+              }
+
+              newCell.appendChild(button);
+              break;
+            case "purchase_order":
+              const link = element("a");
+              link.setAttribute(
+                "href",
+                `/admin/manage-stock?action=view&purchase_order=${dispatch[header]}`
+              );
+              link.innerHTML = dispatch[header];
+              newCell.appendChild(link);
+              break;
+            default:
+              newCell.innerHTML = dispatch[header];
+              break;
+          }
+          newRow.appendChild(newCell);
+        });
+        tableBody.appendChild(newRow);
+      });
+      break;
   }
+  const nav = document.querySelector(".action-group");
+  const info = element("i");
+  info.innerHTML =
+    "*click on the dispatch ID in the table below to confirm receipt of dispatch. only possible when status is 'status' is shipped,";
+  nav.after(info);
+};
+
+const triggerReceipt = (event) => {
+  console.log(event.target.dispatch_id);
+  alert(event.target.dispatch_id);
 };
 
 const reOrderLines = () => {
@@ -1056,6 +1138,9 @@ const changeView = async (event) => {
       break;
     case "purchase-orders":
       urlParams = "?view=purchase-orders";
+      break;
+    case "dispatches":
+      urlParams = "?view=dispatches";
       break;
   }
 

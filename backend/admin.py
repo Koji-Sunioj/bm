@@ -223,22 +223,34 @@ async def admin_get_artists(page: int = None, sort: str = None, direction: str =
     return JSONResponse(response, 200)
 
 
+@admin.get("/dispatches")
+@db_functions.tsql
+async def get_dispatches():
+    query = "select dispatches.purchase_order,dispatches.dispatch_id,dispatches.status,dispatches.address,\
+        purchase_orders.estimated_receipt::varchar,purchase_orders.shipping_cost::float from dispatches join\
+        purchase_orders on purchase_orders.purchase_order = dispatches.purchase_order order by estimated_receipt desc;"
+
+    cursor.execute(query)
+    dispatches = cursor.fetchall()
+    return JSONResponse({"dispatches": dispatches}, 200)
+
+
 @admin.get("/purchase-orders")
 @db_functions.tsql
 async def get_purchase_orders():
-    cmd = "select purchase_orders.purchase_order,modified::varchar,status,count(distinct(album_id)) \
+    query = "select purchase_orders.purchase_order,modified::varchar,status,count(distinct(album_id)) \
         as albums from purchase_orders join purchase_order_lines on purchase_orders.purchase_order \
-            = purchase_order_lines.purchase_order group by purchase_orders.purchase_order,status,modified;"
+        = purchase_order_lines.purchase_order group by purchase_orders.purchase_order,status,modified order by modified desc;"
 
-    cursor.execute(cmd)
-    pos = cursor.fetchall()
-    return JSONResponse({"purchase_orders": pos}, 200)
+    cursor.execute(query)
+    purchase_orders = cursor.fetchall()
+    return JSONResponse({"purchase_orders": purchase_orders}, 200)
 
 
 @admin.get("/purchase-orders/{purchase_order}")
 @db_functions.tsql
 async def get_purchase_order(purchase_order):
-    cmd = "select purchase_orders.purchase_order, purchase_orders.status,purchase_orders.modified::varchar, \
+    query = "select purchase_orders.purchase_order, purchase_orders.status,purchase_orders.modified::varchar, \
 		purchase_orders.estimated_receipt::varchar,purchase_orders.shipping_cost::float, \
         sum(purchase_order_lines.line_total)::float as line_total,\
         (sum(purchase_order_lines.line_total) + purchase_orders.shipping_cost)::float as invoice_total,\
@@ -252,10 +264,8 @@ async def get_purchase_order(purchase_order):
         join artists on artists.artist_id = albums.artist_id where purchase_orders.purchase_order = %s \
         group by purchase_orders.purchase_order;"
 
-    cursor.execute(cmd, (purchase_order,))
+    cursor.execute(query, (purchase_order,))
     purchase_order = cursor.fetchone()
-
-    print(purchase_order)
     return JSONResponse(purchase_order, 200)
 
 
@@ -425,8 +435,6 @@ async def send_purchase_order(request: Request, purchase_order=None):
         "estimated_delivery": form["estimated_delivery"],
         "dispatch_cost": float(form["dispatch_cost"])
     })
-
-    print(payload)
 
     lambda_response = requests.put(dotenv_values(".env")[
         "LAMBDA_SERVER"]+"/client/purchase-orders", data=payload, headers={"Authorization": get_hmac(payload)})

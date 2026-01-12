@@ -128,7 +128,7 @@ table "dispatches" {
     on_delete   = NO_ACTION
   }
   check "dispatches_status_check" {
-    expr = "((status)::text = ANY (ARRAY[('pending-supplier'::character varying)::text, ('shipped'::character varying)::text, ('rescheduled'::character varying)::text]))"
+    expr = "((status)::text = ANY (ARRAY[('received'::character varying)::text, ('pending-supplier'::character varying)::text, ('shipped'::character varying)::text, ('rescheduled'::character varying)::text]))"
   }
 }
 table "orders" {

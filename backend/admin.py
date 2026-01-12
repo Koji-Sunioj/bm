@@ -36,8 +36,8 @@ async def delete_album(album_id):
 async def create_artist(request: Request, artist_id=None):
     form = await request.form()
 
-    check_cmd = "select artist_id from artists where lower(name) = lower(%s);"
-    cursor.execute(check_cmd, (form["name"],))
+    check_query = "select artist_id from artists where lower(name) = lower(%s);"
+    cursor.execute(check_query, (form["name"],))
     existing_artist = cursor.fetchone()
 
     new_artist_exists = request.method == "POST" and existing_artist != None
@@ -272,12 +272,12 @@ async def get_purchase_order(purchase_order):
 @admin.get("/purchase-orders/{purchase_order}/{album_id}")
 @db_functions.tsql
 async def get_purchase_order_line(purchase_order, album_id):
-    cmd = "select album_id,quantity,confirmed_quantity,line_total::float \
+    query = "select album_id,quantity,confirmed_quantity,line_total::float \
         from purchase_orders join purchase_order_lines on \
         purchase_orders.purchase_order = purchase_order_lines.purchase_order \
         where purchase_orders.purchase_order = %s and album_id = %s;"
 
-    cursor.execute(cmd, (purchase_order, album_id))
+    cursor.execute(query, (purchase_order, album_id))
     line_item = cursor.fetchone()
     response = line_item if line_item != None else {"lines": 0}
 
@@ -311,17 +311,17 @@ async def send_purchase_order(request: Request, purchase_order=None):
 
     match request.method:
         case "POST":
-            check_cmd = "select count(purchase_order) from purchase_orders where status in ('pending-supplier','pending-buyer');"
-            cursor.execute(check_cmd)
+            check_query = "select count(purchase_order) from purchase_orders where status in ('pending-supplier','pending-buyer');"
+            cursor.execute(check_query)
             others_orders = cursor.fetchone()["count"]
 
             if others_orders > 0:
                 return JSONResponse({"detail": "no more than one pending purchase order can exist"})
 
-            po_cmd = "insert into purchase_orders (status,shipping_cost,estimated_receipt) values ('pending-supplier',%s,%s) returning purchase_order,modified,status;"
+            insert_command = "insert into purchase_orders (status,shipping_cost,estimated_receipt) values ('pending-supplier',%s,%s) returning purchase_order,modified,status;"
 
             cursor.execute(
-                po_cmd, (form["dispatch_cost"], form["estimated_delivery"]))
+                insert_command, (form["dispatch_cost"], form["estimated_delivery"]))
             inserted = cursor.fetchone()
 
             inserts = "insert into purchase_order_lines (line,purchase_order,album_id,quantity,line_total) values "
@@ -342,8 +342,8 @@ async def send_purchase_order(request: Request, purchase_order=None):
             db_rows = [dict(filter(lambda item: item[0] in keys, line.items()))
                        for line in po_rows]
 
-            check_cmd = "select status from purchase_orders where purchase_order = %s;"
-            cursor.execute(check_cmd, (purchase_order, ))
+            check_query = "select status from purchase_orders where purchase_order = %s;"
+            cursor.execute(check_query, (purchase_order, ))
             existing_po = cursor.fetchone()
 
             if existing_po["status"] == "confirmed":
@@ -352,8 +352,8 @@ async def send_purchase_order(request: Request, purchase_order=None):
             elif existing_po["status"] == "pending-supplier":
                 return JSONResponse({"detail": "this purchase order is waiting on the supplier to confirm line items"})
 
-            cmd = "select line,album_id,quantity,line_total::float,confirmed_quantity from purchase_order_lines where purchase_order = %s order by line asc;"
-            cursor.execute(cmd, (purchase_order,))
+            existing_lines_query = "select line,album_id,quantity,line_total::float,confirmed_quantity from purchase_order_lines where purchase_order = %s order by line asc;"
+            cursor.execute(existing_lines_query, (purchase_order,))
             existing_lines = cursor.fetchall()
 
             for n, new_line in enumerate(db_rows):
@@ -382,7 +382,7 @@ async def send_purchase_order(request: Request, purchase_order=None):
                 to_add_lines) > 0, "delete": len(to_delete_lines) > 0}
 
             if action["update"]:
-                update_cmd = """update purchase_order_lines
+                update_command = """update purchase_order_lines
                     set line = new_lines.line,
                         album_id = new_lines.album_id,
                         quantity = new_lines.quantity,
@@ -399,28 +399,29 @@ async def send_purchase_order(request: Request, purchase_order=None):
                     purchase_order_lines.line = new_lines.line;"""
 
                 update_lines = dict_list_to_matrix(to_update_lines)
-                cursor.execute(update_cmd, (*update_lines, purchase_order))
+                cursor.execute(update_command, (*update_lines, purchase_order))
 
             if action["add"]:
                 insert_lines = dict_list_to_matrix(to_add_lines)
-                insert_cmd = """insert into purchase_order_lines
+                insert_command = """insert into purchase_order_lines
                     (line,album_id,quantity,line_total,confirmed_quantity,purchase_order)
                     select unnest(%s),unnest(%s),unnest(%s),unnest(%s),unnest(%s::smallint[]),%s;
                     """
-                cursor.execute(insert_cmd, (*insert_lines, purchase_order))
+                cursor.execute(insert_command, (*insert_lines, purchase_order))
 
             elif action["delete"]:
-                delete_cmd = "delete from purchase_order_lines where line in (select unnest(ARRAY[%s])) and purchase_order = %s;"
-                cursor.execute(delete_cmd, (to_delete_lines, purchase_order))
+                delete_command = "delete from purchase_order_lines where line in (select unnest(ARRAY[%s])) and purchase_order = %s;"
+                cursor.execute(
+                    delete_command, (to_delete_lines, purchase_order))
 
             if any(action.values()):
                 new_modified = datetime.now(
                     timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-                update_po_cmd = "update purchase_orders set modified = %s, status = %s, \
+                update_po_command = "update purchase_orders set modified = %s, status = %s, \
                     shipping_cost = %s,estimated_receipt = %s where purchase_order = %s \
                     returning purchase_order,modified,status;"
-                cursor.execute(update_po_cmd, (new_modified,
-                                               'pending-supplier', form["dispatch_cost"], form["estimated_delivery"], purchase_order))
+                cursor.execute(update_po_command, (new_modified,
+                                                   'pending-supplier', form["dispatch_cost"], form["estimated_delivery"], purchase_order))
                 inserted = cursor.fetchone()
 
             else:
@@ -454,7 +455,7 @@ async def send_purchase_order(request: Request, purchase_order=None):
 @admin.delete("/artists/{artist_id}")
 @db_functions.tsql
 async def delete_artist(artist_id):
-    del_cmd = "delete from artists where artist_id = %s returning name;"
-    cursor.execute(del_cmd, (artist_id,))
+    delete_command = "delete from artists where artist_id = %s returning name;"
+    cursor.execute(delete_command, (artist_id,))
     name = cursor.fetchone()["name"]
     return JSONResponse({"detail": "artist %s deleted" % name}, 200)

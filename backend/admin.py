@@ -300,6 +300,42 @@ async def get_dispatch_costs(items: str = None):
     return JSONResponse(lambda_response.json())
 
 
+@admin.patch("/dispatches/{dispatch_id}")
+@db_functions.tsql
+async def send_dispatch_update(request: Request, dispatch_id):
+
+    check_query = "select status from dispatches where dispatch_id = %s;"
+    cursor.execute(check_query, (dispatch_id,))
+    status = cursor.fetchone()["status"]
+
+    if status != "shipped":
+        raise Exception(
+            "this dispatch must be in 'shipped' status to confirm receipt")
+
+    data = await request.json()
+    payload = json.dumps({
+        "client_id": "bm-prod" if os.path.exists('/var/lib/cloud/instance') else "bm-dev",
+        "status": data["status"]
+    })
+
+    detail = None
+    lambda_response = requests.patch(dotenv_values(".env")[
+                                     "LAMBDA_SERVER"]+"/client/dispatches/%s" % dispatch_id, data=payload, headers={"Authorization": get_hmac(payload)})
+
+    if lambda_response.headers.get('content-type') == "application/json":
+        detail = lambda_response.json()["message"]
+    else:
+        detail = "there was an error parsing a response."
+
+    if lambda_response.status_code != 200:
+        raise Exception(detail)
+
+    update_command = "update dispatches set status = %s where dispatch_id = %s"
+    cursor.execute(update_command, (data["status"], dispatch_id))
+
+    return JSONResponse({"detail": detail}, 200)
+
+
 @admin.post("/purchase-orders")
 @admin.patch("/purchase-orders/{purchase_order}")
 @db_functions.tsql

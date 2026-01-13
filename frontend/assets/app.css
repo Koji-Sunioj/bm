@@ -441,3 +441,7 @@ select::-ms-expand {
 #po-details > .form-field > input {
   background-color: grey;
 }
+
+.cell-button {
+  all: unset;
+}

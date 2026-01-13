@@ -300,16 +300,16 @@ const renderAdminView = async () => {
               }
               break;
             case "dispatch_id":
-              const button = element("button");
-              button.innerHTML = dispatch[header];
-              button.addEventListener("click", triggerReceipt);
-              button.dispatch_id = dispatch[header];
-
-              if (dispatch["status"] !== "shipped") {
-                button.disabled = true;
+              if (dispatch["status"] === "shipped") {
+                const button = element("button");
+                button.innerHTML = dispatch[header];
+                button.addEventListener("click", triggerReceipt);
+                button.dispatch_id = dispatch[header];
+                button.classList.add("cell-button");
+                newCell.appendChild(button);
+              } else {
+                newCell.innerHTML = dispatch[header];
               }
-
-              newCell.appendChild(button);
               break;
             case "purchase_order":
               const link = element("a");
@@ -328,18 +328,33 @@ const renderAdminView = async () => {
         });
         tableBody.appendChild(newRow);
       });
+      const nav = document.querySelector(".action-group");
+      const info = element("i");
+      info.innerHTML =
+        "*click on the dispatch ID in the table below to confirm receipt of dispatch. only possible when status is 'status' is shipped,";
+      nav.after(info);
       break;
   }
-  const nav = document.querySelector(".action-group");
-  const info = element("i");
-  info.innerHTML =
-    "*click on the dispatch ID in the table below to confirm receipt of dispatch. only possible when status is 'status' is shipped,";
-  nav.after(info);
 };
 
-const triggerReceipt = (event) => {
-  console.log(event.target.dispatch_id);
-  alert(event.target.dispatch_id);
+const triggerReceipt = async (event) => {
+  const {
+    target: { dispatch_id },
+  } = event;
+
+  const response = await fetch(`/api/admin/dispatches/${dispatch_id}`, {
+    body: JSON.stringify({ status: "received" }),
+    method: "PATCH",
+  });
+
+  const { status } = response;
+  const { detail } = await response.json();
+
+  alert(detail);
+
+  if (status == 200) {
+    window.location.reload();
+  }
 };
 
 const reOrderLines = () => {

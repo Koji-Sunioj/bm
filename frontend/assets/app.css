@@ -444,4 +444,5 @@ select::-ms-expand {
 
 .cell-button {
   all: unset;
+  color:red;
 }

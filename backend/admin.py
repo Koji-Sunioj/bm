@@ -330,8 +330,20 @@ async def send_dispatch_update(request: Request, dispatch_id):
     if lambda_response.status_code != 200:
         raise Exception(detail)
 
-    update_command = "update dispatches set status = %s where dispatch_id = %s"
-    cursor.execute(update_command, (data["status"], dispatch_id))
+    update_stock_command = """update albums
+        set stock = stock + something.confirmed_quantity from
+        (select album_id,confirmed_quantity from purchase_orders 
+        join dispatches on 
+        dispatches.purchase_order = purchase_orders.purchase_order
+        join purchase_order_lines on 
+        purchase_order_lines.purchase_order = dispatches.purchase_order
+        where dispatch_id = %s) 
+        as something
+        where something.album_id = albums.album_id;"""
+    cursor.execute(update_stock_command, (dispatch_id,))
+
+    update_dispatch_command = "update dispatches set status = %s where dispatch_id = %s"
+    cursor.execute(update_dispatch_command, (data["status"], dispatch_id))
 
     return JSONResponse({"detail": detail}, 200)
 

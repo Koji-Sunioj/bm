@@ -190,7 +190,6 @@ async def despatch_update(request: Request, dispatch_id):
 async def despatch_notification(request: Request):
     payload = await request.json()
     check_hmac(json.dumps(payload), request.headers["authorization"])
-    print(payload)
 
     insert_command = """insert into dispatches (dispatch_id,purchase_order,status,address) values \
         (%s,%s,%s,%s)"""

@@ -150,7 +150,7 @@ const renderAdminView = async () => {
         );
 
         const searchParam = query === null ? "" : `&query=${query}`;
-        const apiUrl = `/api/albums?page=${page}&sort=${sort}&direction=${direction}${searchParam}`;
+        const apiUrl = `/api/client/albums?page=${page}&sort=${sort}&direction=${direction}${searchParam}`;
         const { albums, pages } = await fetch(apiUrl).then((response) =>
           response.json()
         );
@@ -625,7 +625,7 @@ const renderPurchaseForm = async () => {
 
     const {
       artist: { albums },
-    } = await fetch(`/api/artists/${artistSelect.value}?view=user`).then(
+    } = await fetch(`/api/client/artists/${artistSelect.value}?view=user`).then(
       (response) => response.json()
     );
 
@@ -662,7 +662,7 @@ const changeAlbums = async (event) => {
 
   if (albumSelect.childNodes.length === 0) {
     const response = await fetch(
-      `/api/artists/${event.target.value}?view=user`
+      `/api/client/artists/${event.target.value}?view=user`
     );
     const {
       artist: { albums },
@@ -687,12 +687,12 @@ const changeAlbums = async (event) => {
   fieldSet.disabled = false;
 };
 
-const changeAlbum = async (event) => {
+const changeAlbum = async () => {
   const fieldSet = document.querySelector("fieldset");
   fieldSet.disabled = true;
 
   const albumId = document.querySelector("[name=album_id]").value;
-  const response = await fetch(`/api/albums/${albumId}`);
+  const response = await fetch(`/api/client/albums/${albumId}`);
   const {
     album: { price, stock },
   } = await response.json();
@@ -932,7 +932,9 @@ const renderArtistForm = async () => {
     case "edit":
       const artistID = url.get("artist_id");
       checkAndRedirect([artistID], "?action=new");
-      const response = await fetch(`/api/artists/${artistID}?view=admin`);
+      const response = await fetch(
+        `/api/client/artists/${artistID}?view=admin`
+      );
       const {
         artist: { name, bio, artist_id },
       } = await response.json();
@@ -1039,7 +1041,7 @@ const renderAlbumForm = async () => {
         album: { name, photo, title, artist_id, album_id },
         album,
         songs,
-      } = await fetch(`/api/albums/${albumId}`).then((response) =>
+      } = await fetch(`/api/client/albums/${albumId}`).then((response) =>
         response.json()
       );
 
@@ -1189,7 +1191,7 @@ const auth = async (event) => {
     location: { pathname },
   } = window;
 
-  const apiUrl = pathname === "/register" ? pathname : "/sign-in";
+  const apiUrl = pathname === "/register" ? "/auth/register" : "/auth/sign-in";
 
   const url = `/api${apiUrl}`;
 
@@ -1269,7 +1271,7 @@ const addPhoto = (event) => {
 };
 
 const renderOrders = async () => {
-  const response = await fetch("/api/orders");
+  const response = await fetch("/api/client/orders");
   const { orders, cart } = await response.json();
 
   const targetDiv = document.getElementById("details");
@@ -1330,7 +1332,7 @@ const renderOrders = async () => {
 };
 
 const checkOut = async () => {
-  const request = await fetch("/api/cart/checkout", { method: "POST" });
+  const request = await fetch("/api/client/cart/checkout", { method: "POST" });
 
   const { status } = request;
   const { detail } = await request.json();
@@ -1408,7 +1410,7 @@ const renderArtist = async () => {
   } = window;
 
   const artist_id = pathname.split("/")[2];
-  const url = `/api/artists/${artist_id}?view=user`;
+  const url = `/api/client/artists/${artist_id}?view=user`;
   const response = await fetch(url);
   const {
     artist: { name, albums, bio },
@@ -1432,7 +1434,7 @@ const renderAlbums = async () => {
   showSearchBar("?page=1&sort=name&direction=ascending", viewParams);
 
   const searchParam = query === null ? "" : `&query=${query}`;
-  const fetchUrl = `/api/albums?page=${page}&sort=${sort}&direction=${direction}${searchParam}`;
+  const fetchUrl = `/api/client/albums?page=${page}&sort=${sort}&direction=${direction}${searchParam}`;
 
   const { albums, pages } = await fetch(fetchUrl).then((response) =>
     response.json()
@@ -1451,7 +1453,7 @@ const renderAlbum = async () => {
   const album_id = pathname.match(/\/artist\/.*\/album\/(\d.*)/)[1];
 
   const response = await fetch(
-    `/api/albums/${album_id}?cart=get&previews=true`
+    `/api/client/albums/${album_id}?cart=get&previews=true`
   );
   const { album, songs, cart } = await response.json();
 
@@ -1694,7 +1696,7 @@ const removeAlbum = async (album_id) => {
   const removeBtn = document.getElementById("remove-button");
   removeBtn.disabled = true;
 
-  const response = await fetch(`/api/cart/${album_id}/remove`, {
+  const response = await fetch(`/api/client/cart/${album_id}/remove`, {
     method: "POST",
   });
 
@@ -1728,7 +1730,7 @@ const buyAlbum = async (album_id) => {
   const salesBtn = document.getElementById("buy-album");
   salesBtn.disabled = true;
 
-  const response = await fetch(`/api/cart/${album_id}/add`, {
+  const response = await fetch(`/api/client/cart/${album_id}/add`, {
     method: "POST",
   });
 
@@ -1756,7 +1758,7 @@ const buyAlbum = async (album_id) => {
 };
 
 const renderUser = async () => {
-  const request = await fetch(`/api/user`);
+  const request = await fetch(`/api/client/user`);
   const { user } = await request.json();
   const targetDiv = document.getElementById("details");
 

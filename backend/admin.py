@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Request, Depends, Response
 
 
-admin = APIRouter(prefix="/api/admin",
+admin = APIRouter(prefix="/admin",
                   dependencies=[Depends(verify_admin_token)])
 
 

@@ -13,6 +13,3 @@ api.include_router(admin)
 api.include_router(merchant)
 
 app.include_router(api)
-
-for route in app.routes:
-    print(route.path)

@@ -82,6 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: check-db
     if: needs.check-db.outputs.updatedb_functions == '1'
+    steps:
       - run: |
           echo "updating db functions"
           echo "$PRIVATE_KEY" > github-ec2.pem && chmod 600 github-ec2.pem

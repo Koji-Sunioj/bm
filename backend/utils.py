@@ -32,15 +32,15 @@ def get_hmac(payload):
 
 def parse_samples(album):
     try:
-        deezer_albums = "https://api.deezer.com/search/album?q=%s" % album["album"]["title"]
+        deezer_albums = "https://api.deezer.com/search/album?q=%s" % album["title"]
         response = requests.get(deezer_albums)
         sample_album_id = None
 
         for sample_album in response.json()["data"]:
             same_album = sample_album["title"].lower(
-            ) == album["album"]["title"].lower()
+            ) == album["title"].lower()
             same_artist = sample_album["artist"]["name"].lower(
-            ) == album["album"]["name"].lower()
+            ) == album["name"].lower()
 
             if same_album and same_artist:
                 sample_album_id = sample_album["id"]
@@ -54,9 +54,8 @@ def parse_samples(album):
                 if sample_track["track_position"] == bm_track["track"]:
                     bm_track["preview"] = sample_track["preview"]
         return album
-    except:
+    except Exception as error:
         return album
-
 
 def bm_format_photoname(name, title, filename):
     file_params = "%s-%s" % (name.lower(), title.lower())

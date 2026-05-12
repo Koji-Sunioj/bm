@@ -1,9 +1,14 @@
 import db_functions
 from utils import *
+
+from models import UserResponse, Artist
+from pydantic import create_model
+
 from db_functions import cursor
 from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 from fastapi import APIRouter, Request, Depends
+
+
 
 client = APIRouter(prefix="/client")
 
@@ -14,17 +19,18 @@ client = APIRouter(prefix="/client")
 # /cart
 
 
-@client.get("/user", dependencies=[Depends(verify_token)])
+@client.get("/user", dependencies=[Depends(verify_token)], response_model=UserResponse)
 @db_functions.tsql
 async def get_user(request: Request):
     cursor.callproc("get_user", (request.state.sub, "cart"))
     user = cursor.fetchone()["bm_user"]
-    return JSONResponse({"user": jsonable_encoder(user)}, 200)
+    print(user)
+    return {"user": user}
 
 
 @client.get("/artists/{artist_id}")
 @db_functions.tsql
-async def get_artist(artist_id, view: str):
+async def get_artist(artist_id: int, view: str):
     cursor.callproc("get_artist", (artist_id, view))
     artist = cursor.fetchone()
     return JSONResponse(artist, 200)
@@ -32,9 +38,21 @@ async def get_artist(artist_id, view: str):
 
 @client.get("/albums")
 @db_functions.tsql
-async def get_albums(request: Request, page: int = 1, sort: str = "name", direction: str = "ascending", query: str = None):
+async def get_albums(
+    request: Request,
+    page: int = 1,
+    sort: str = "name",
+    direction: str = "ascending",
+    query: str = None,
+):
     albums = {}
-    cursor.callproc("get_pages", ('albums', query,))
+    cursor.callproc(
+        "get_pages",
+        (
+            "albums",
+            query,
+        ),
+    )
     albums["pages"] = cursor.fetchone()["pages"]
     cursor.callproc("get_albums", (page, sort, direction, query))
     albums["data"] = cursor.fetchall()
@@ -51,8 +69,10 @@ async def get_album(album_id, request: Request, cart: str = None, previews: str 
     try:
         if "cookie" in request.headers and cart == "get":
             jwt_payload = await decode_token(request)
-            cursor.callproc("get_cart_count", (jwt_payload["sub"],
-                            parsed_album["album"]["album_id"]))
+            cursor.callproc(
+                "get_cart_count",
+                (jwt_payload["sub"], parsed_album["album"]["album_id"]),
+            )
             cart = cursor.fetchone()
             parsed_album.update(cart)
     except:
@@ -84,7 +104,11 @@ async def checkout_cart_items(request: Request):
     cursor.callproc("create_dispatch_items", (order_id, album_ids, quantities))
     cursor.callproc("remove_cart_items", (user_id,))
 
-    response = "order %s has been successfully dispatched" % order_id if cursor.rowcount != 0 else "no order to checkout"
+    response = (
+        "order %s has been successfully dispatched" % order_id
+        if cursor.rowcount != 0
+        else "no order to checkout"
+    )
     return JSONResponse({"detail": response}, 200)
 
 

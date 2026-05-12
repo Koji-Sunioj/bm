@@ -51,7 +51,7 @@ def parse_samples(album):
             response = requests.get(deezer_album)
 
             for sample_track, bm_track in zip(response.json()["data"], album["songs"]):
-                if sample_track["title"].lower() == bm_track["song"].lower():
+                if sample_track["track_position"] == bm_track["track"]:
                     bm_track["preview"] = sample_track["preview"]
         return album
     except:

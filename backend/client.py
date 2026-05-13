@@ -47,6 +47,7 @@ async def get_albums(
     albums["pages"] = cursor.fetchone()["pages"]
     cursor.callproc("get_albums", (page, sort, direction, query))
     albums["data"] = cursor.fetchall()
+    print(albums)
     return {"albums": albums["data"], "pages": albums["pages"]}
 
 
@@ -79,6 +80,7 @@ async def get_album(album_id, request: Request, cart: str = None, previews: str 
 async def get_orders_cart(request: Request):
     cursor.callproc("get_orders_and_cart", (request.state.sub,))
     orders_cart = cursor.fetchone()
+    print(orders_cart)
     return JSONResponse(orders_cart, 200)
 
 

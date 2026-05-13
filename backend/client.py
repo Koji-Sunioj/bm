@@ -27,7 +27,7 @@ async def get_artist(artist_id: int, view: str) -> ArtistResponse:
     return {"artist": artist}
 
 
-@client.get("/albums", response_model=AlbumsResponse)
+@client.get("/albums", response_model=AlbumsResponse,response_model_exclude_none=True)
 @db_functions.tsql
 async def get_albums(
     request: Request,
@@ -51,7 +51,7 @@ async def get_albums(
     return {"albums": albums["data"], "pages": albums["pages"]}
 
 
-@client.get("/albums/{album_id}",response_model=AlbumResponse)
+@client.get("/albums/{album_id}",response_model=AlbumResponse, response_model_exclude_none=True)
 @db_functions.tsql
 async def get_album(album_id, request: Request, cart: str = None, previews: str = None) -> AlbumResponse:
     cursor.callproc("get_album", (album_id,))
@@ -71,6 +71,8 @@ async def get_album(album_id, request: Request, cart: str = None, previews: str 
     except Exception as error:
         print(error)
         pass
+
+    print(album)
 
     return {"album": parsed_album} 
 

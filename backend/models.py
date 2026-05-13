@@ -30,7 +30,7 @@ class Album(BaseModel):
     photo: str
     stock: int
     price: float
-    modified: str | None = None
+    modified: Optional[str] | None = None    
     songs: List[Song] | None = None
     cart: int | None = None 
 

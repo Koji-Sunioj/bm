@@ -66,7 +66,6 @@ class OrderResponse(BaseModel):
     cart: Cart
     orders: List[Order]
 
-
 """
 {
    "cart":{

@@ -4,7 +4,8 @@ $$
 begin   
 	return query select json_build_object('album_id',albums.album_id,'artist_id',artists.artist_id,'name',name,
 	'title', title, 'release_year',release_year,'photo', photo,'stock',stock,'price',price::float,
-	'songs',json_agg(json_build_object('track',track,'song',song,'duration',duration) order by track)) as album
+	'songs',json_agg(json_build_object('track',track,'song',song,'duration',duration) order by track)) 
+	as album
         from albums join artists on artists.artist_id = albums.artist_id
         join songs on songs.album_id = albums.album_id 
         where albums.album_id = $1

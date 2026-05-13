@@ -9,14 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Request, Depends
 
 
-
 client = APIRouter(prefix="/client")
-
-# /user
-# /artists
-# /albums
-# /orders
-# /cart
 
 
 @client.get("/user", dependencies=[Depends(verify_token)], response_model=UserResponse)

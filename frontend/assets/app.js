@@ -742,9 +742,16 @@ const changeAlbum = async () => {
     fieldSet.disabled = true;
 
     const albumId = document.querySelector("[name=album_id]").value;
+<<<<<<< HEAD
     const {
         album: { price, stock },
     } =  await fetch(`/api/client/albums/${albumId}`).then((response)=>response.json());
+=======
+    const response = await fetch(`/api/client/albums/${albumId}`);
+    const {
+        album: { price, stock },
+    } = await response.json();
+>>>>>>> dev
 
     //add button
     document.querySelector("[name=stock]").value = stock;
@@ -1095,12 +1102,18 @@ const renderAlbumForm = async () => {
             checkAndRedirect([albumId], "?action=new");
             const {
                 album: { name, photo, title, artist_id, album_id },
+<<<<<<< HEAD
                 album: { songs },
                 album,
+=======
+                album,
+                songs,
+>>>>>>> dev
             } = await fetch(`/api/client/albums/${albumId}`).then((response) =>
                 response.json(),
             );
 
+<<<<<<< HEAD
             console.log(album);
 
             h1.innerText = `Edit ${title} by ${name}`;
@@ -1152,6 +1165,57 @@ const renderAlbumForm = async () => {
             deleteButton.innerText = "Delete";
             actionGroup.appendChild(deleteButton);
 
+=======
+            h1.innerText = `Edit ${title} by ${name}`;
+
+            unHideInput("album_id", album_id);
+
+            ["title", "release_year", "price"].forEach((key) => {
+                const input = document.querySelector(`[name=${key}]`);
+                input.value = input.placeholder = album[key];
+            });
+
+            const existingOption = Array.from(
+                artistSelect.querySelectorAll("option"),
+            ).find((option) => Number(option.value) === artist_id);
+
+            artistSelect.value = existingOption.value;
+
+            const img = document.getElementById("photo-preview");
+            const imgInput = document.getElementById("photo");
+
+            const imgData = await fetch(`/common/${photo}`).then((response) =>
+                response.blob(),
+            );
+
+            const existingFile = new File([imgData], photo);
+            const dataXfer = new DataTransfer();
+            dataXfer.items.add(existingFile);
+            imgInput.files = dataXfer.files;
+            img.src = URL.createObjectURL(existingFile);
+
+            const [songOne, durationOne] = Array.from(
+                document.querySelectorAll("[name=song_1],[name=duration_1]"),
+            );
+            const firstSong = songs[0];
+            songOne.value = firstSong.song;
+            durationOne.value =
+                firstSong.duration !== null ? toMMSS(firstSong.duration) : "";
+
+            Object.keys(songs).forEach((track, n) => {
+                n !== 0 && addSong(songs[track]);
+            });
+
+            const actionGroup = document.querySelector(".action-group");
+            const deleteButton = element("button");
+            deleteButton.setAttribute("type", "button");
+            deleteButton.onclick = () => {
+                deleteAlbum(album_id);
+            };
+            deleteButton.innerText = "Delete";
+            actionGroup.appendChild(deleteButton);
+
+>>>>>>> dev
             break;
         case "new":
             h1.innerText = "Create a album";
@@ -1490,10 +1554,20 @@ const renderArtist = async () => {
     } = await response.json();
 
     const h1 = document.querySelector("h1");
+<<<<<<< HEAD
     h1.innerText = name;
     const artistP = document.getElementById("bio");
     artistP.innerText = bio;
 
+=======
+
+    document.title += ` ${name}`;
+
+    h1.innerText = name;
+    const artistP = document.getElementById("bio");
+    artistP.innerText = bio;
+
+>>>>>>> dev
     renderAlbumTiles(albums);
 };
 
@@ -1528,7 +1602,12 @@ const renderAlbum = async () => {
     const response = await fetch(
         `/api/client/albums/${album_id}?cart=get&previews=true`,
     );
+<<<<<<< HEAD
     const { album, songs, cart } = await response.json();
+=======
+    const { album } = await response.json();
+    const { songs, cart } = album;
+>>>>>>> dev
 
     document.title += ` ${album.name} - ${album.title}`;
 
@@ -1542,7 +1621,11 @@ const renderAlbum = async () => {
     const infoDiv = document.getElementById("info-div");
 
     const paragraphs = Object.keys(album)
+<<<<<<< HEAD
         .filter((info) => !["photo", "cart"].includes(info))
+=======
+        .filter((info) => !["photo", "cart", "songs"].includes(info))
+>>>>>>> dev
         .map((info) => {
             const text = info.split("_").join(" ");
             const paragraph = element("p");
@@ -1605,7 +1688,11 @@ const renderAlbum = async () => {
                         break;
                     case "song":
                         text = `${dbSong[item]}`;
+<<<<<<< HEAD
                         if (dbSong.hasOwnProperty("preview")) {
+=======
+                        if (dbSong["preview"] !== null) {
+>>>>>>> dev
                             renderMusicPlayer(dbSong, infoDiv);
                             const songButton = element("button");
                             songButton.onclick = () => {
@@ -1653,7 +1740,11 @@ const renderAlbum = async () => {
             removeAlbum(album.album_id);
         };
         if (cart > 0) {
+<<<<<<< HEAD
             cartInfo.innerText = `${cart} of these albums are in your cart.`;
+=======
+            cartInfo.innerText = `${album["cart"]} of these albums are in your cart.`;
+>>>>>>> dev
             removeBtn.style.display = "inline-block";
         } else if (cart === 0 && album.stock === 0) {
             cartInfo.innerText =

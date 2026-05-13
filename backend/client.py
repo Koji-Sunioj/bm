@@ -1,35 +1,37 @@
 import db_functions
-from utils import *
+from utils import parse_samples, verify_token, decode_token
 
-from models import UserResponse, Artist
+from models import UserResponse, ArtistResponse, AlbumsResponse, AlbumResponse
 from pydantic import create_model
 
 from db_functions import cursor
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Request, Depends
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> dev
 client = APIRouter(prefix="/client")
 
 
 @client.get("/user", dependencies=[Depends(verify_token)], response_model=UserResponse)
 @db_functions.tsql
-async def get_user(request: Request):
+async def get_user(request: Request) -> UserResponse:
     cursor.callproc("get_user", (request.state.sub, "cart"))
     user = cursor.fetchone()["bm_user"]
-    print(user)
     return {"user": user}
 
 
-@client.get("/artists/{artist_id}")
+@client.get("/artists/{artist_id}", response_model=ArtistResponse)
 @db_functions.tsql
-async def get_artist(artist_id: int, view: str):
+async def get_artist(artist_id: int, view: str) -> ArtistResponse:
     cursor.callproc("get_artist", (artist_id, view))
-    artist = cursor.fetchone()
-    return JSONResponse(artist, 200)
+    artist = cursor.fetchone()["artist"]
+    return {"artist": artist}
 
 
-@client.get("/albums")
+@client.get("/albums", response_model=AlbumsResponse)
 @db_functions.tsql
 async def get_albums(
     request: Request,
@@ -37,7 +39,7 @@ async def get_albums(
     sort: str = "name",
     direction: str = "ascending",
     query: str = None,
-):
+) -> AlbumsResponse:
     albums = {}
     cursor.callproc(
         "get_pages",
@@ -49,29 +51,31 @@ async def get_albums(
     albums["pages"] = cursor.fetchone()["pages"]
     cursor.callproc("get_albums", (page, sort, direction, query))
     albums["data"] = cursor.fetchall()
-    return JSONResponse({"albums": albums["data"], "pages": albums["pages"]}, 200)
+    return {"albums": albums["data"], "pages": albums["pages"]}
 
 
-@client.get("/albums/{album_id}")
+@client.get("/albums/{album_id}",response_model=AlbumResponse)
 @db_functions.tsql
-async def get_album(album_id, request: Request, cart: str = None, previews: str = None):
+async def get_album(album_id, request: Request, cart: str = None, previews: str = None) -> AlbumResponse:
     cursor.callproc("get_album", (album_id,))
-    album = cursor.fetchone()
+    album = cursor.fetchone()["album"]
     parsed_album = parse_samples(album) if previews == "true" else album
 
     try:
         if "cookie" in request.headers and cart == "get":
+            print("hey")
             jwt_payload = await decode_token(request)
             cursor.callproc(
                 "get_cart_count",
-                (jwt_payload["sub"], parsed_album["album"]["album_id"]),
+                (jwt_payload["sub"], parsed_album["album_id"]),
             )
             cart = cursor.fetchone()
             parsed_album.update(cart)
-    except:
+    except Exception as error:
+        print(error)
         pass
 
-    return JSONResponse(parsed_album, 200)
+    return {"album": parsed_album} 
 
 
 @client.get("/orders", dependencies=[Depends(verify_token)])

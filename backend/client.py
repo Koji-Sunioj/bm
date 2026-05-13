@@ -8,10 +8,6 @@ from db_functions import cursor
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Request, Depends
 
-<<<<<<< HEAD
-
-=======
->>>>>>> dev
 client = APIRouter(prefix="/client")
 
 

@@ -30,7 +30,7 @@ class Album(BaseModel):
     photo: str
     stock: int
     price: float
-    modified: Optional[str] | None = None    
+    modified: str | None = None    
     songs: List[Song] | None = None
     cart: int | None = None 
 
@@ -43,52 +43,46 @@ class AlbumsResponse(BaseModel):
 class AlbumResponse(BaseModel):
     album: Album
 
+class ArtistForAdmin(BaseModel):
+    artist_id: int
+    name: str
+    bio: str
 
 class Artist(BaseModel):
     name: str
     bio: str
     albums: List[Album]
 
-
 class ArtistResponse(BaseModel):
-    artist: Artist
+    artist: Artist | ArtistForAdmin
+
+class CartItem(BaseModel):
+    artist_id: int
+    album_id: int
+    photo: str
+    title: str
+    artist: str
+    quantity: int
+    price: float
 
 class Cart(BaseModel):
     balance: float | None = None
-    albums: int
+    albums:  List[CartItem] | None = None
 
 class Order(BaseModel):
     order_id: int
     dispatched: str
     balance: float
+    albums: List[CartItem]
 
 class OrderResponse(BaseModel):
     cart: Cart
     orders: List[Order]
 
-"""
-{
-   "cart":{
-      "balance":null,
-      "albums":null
-   },
-   "orders":[
-      {
-         "order_id":10000,
-         "dispatched":"2025-02-13T18:05:47.3112",
-         "balance":9.27,
-         "albums":[
-            {
-               "artist_id":100,
-               "album_id":1000,
-               "photo":"ascension-the-dead-of-the-world-Cover-Art.webp",
-               "title":"The Dead of the World",
-               "artist":"Ascension",
-               "quantity":1,
-               "price":9.27
-            }
-         ]
-      },
-   ]
-}  
-"""
+class DetailResponse(BaseModel):
+    detail: str
+
+class AddToCartResponse(BaseModel):
+    remaining: int
+    cart: int
+

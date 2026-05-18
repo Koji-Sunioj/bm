@@ -7,10 +7,9 @@ from db_functions import cursor
 from datetime import datetime, timezone
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Request, Depends, Response
+from models import DetailResponse
 
-
-admin = APIRouter(prefix="/admin",
-                  dependencies=[Depends(verify_admin_token)])
+admin = APIRouter(prefix="/admin", dependencies=[Depends(verify_admin_token)])
 
 
 @admin.delete("/albums/{album_id}")
@@ -41,8 +40,11 @@ async def create_artist(request: Request, artist_id=None):
     existing_artist = cursor.fetchone()
 
     new_artist_exists = request.method == "POST" and existing_artist != None
-    edit_artist_exists = request.method == "PATCH" and existing_artist != None and str(
-        existing_artist["artist_id"]) != artist_id
+    edit_artist_exists = (
+        request.method == "PATCH"
+        and existing_artist != None
+        and str(existing_artist["artist_id"]) != artist_id
+    )
 
     if any([new_artist_exists, edit_artist_exists]):
         return JSONResponse({"detail": "that artist exists"}, 409)
@@ -61,19 +63,30 @@ async def create_artist(request: Request, artist_id=None):
             cursor.callproc("get_artist", (artist_id, "user"))
             artist = cursor.fetchone()["artist"]
 
-            fields_to_change = {field: form[field] if str(artist[field]) != form[field] else None for field in [
-                "name", "bio"]}
+            fields_to_change = {
+                field: form[field] if str(artist[field]) != form[field] else None
+                for field in ["name", "bio"]
+            }
 
             if any(fields_to_change.values()):
                 cursor.callproc(
-                    "update_artist", (artist_id, * fields_to_change.values()))
+                    "update_artist", (artist_id, *fields_to_change.values())
+                )
                 updated = cursor.fetchone()
                 response["detail"] = "artist %s updated" % updated["name"]
                 response["artist_id"] = updated["artist_id"]
 
             if fields_to_change["name"] != None and len(artist["albums"]) > 0:
-                new_files = [{"album_id": album["album_id"], "new_file": bm_format_photoname(
-                    form["name"], album["title"], album["photo"]), "old_file": album["photo"]} for album in artist["albums"]]
+                new_files = [
+                    {
+                        "album_id": album["album_id"],
+                        "new_file": bm_format_photoname(
+                            form["name"], album["title"], album["photo"]
+                        ),
+                        "old_file": album["photo"],
+                    }
+                    for album in artist["albums"]
+                ]
 
                 photo_matrix = dict_list_to_matrix(new_files)[:-1]
                 cursor.callproc("update_photos", (*photo_matrix,))
@@ -83,7 +96,7 @@ async def create_artist(request: Request, artist_id=None):
                     old_file = "/var/www/bm/common/%s" % file["old_file"]
                     os.rename(old_file, new_file)
 
-    return JSONResponse(response, 200)
+    return response 
 
 
 @admin.post("/albums")
@@ -95,17 +108,29 @@ async def manage_album(request: Request, album_id=None):
     cursor.callproc("get_artist", (form["artist_id"], "user"))
     artist = cursor.fetchone()["artist"]
 
-    edit_album_exists = request.method == "PATCH" and len(
-        [album for album in artist["albums"] if str(album["album_id"]) != album_id and album["title"].lower() == form["title"].lower()]) > 0
+    edit_album_exists = (
+        request.method == "PATCH"
+        and len(
+            [
+                album
+                for album in artist["albums"]
+                if str(album["album_id"]) != album_id
+                and album["title"].lower() == form["title"].lower()
+            ]
+        )
+        > 0
+    )
 
     new_album_exists = request.method == "POST" and form["title"].lower() in [
-        row["title"].lower() for row in artist["albums"]]
+        row["title"].lower() for row in artist["albums"]
+    ]
 
     if any([new_album_exists, edit_album_exists]):
         return JSONResponse({"detail": "that album exists"}, 409)
 
     filename = bm_format_photoname(
-        artist["name"], form["title"], form["photo"].filename)
+        artist["name"], form["title"], form["photo"].filename
+    )
 
     response = {}
 
@@ -116,55 +141,71 @@ async def manage_album(request: Request, album_id=None):
             save_file(filename, content)
 
             insert_album_params = (
-                form["title"], form["release_year"], form["price"], filename, form["artist_id"])
+                form["title"],
+                form["release_year"],
+                form["price"],
+                filename,
+                form["artist_id"],
+            )
             cursor.callproc("insert_album", insert_album_params)
             inserted = cursor.fetchone()
 
             new_songs = form_songs_to_list(form, inserted["album_id"])
             inserted_matrix = dict_list_to_matrix(new_songs)
-            cursor.callproc("insert_songs", (* inserted_matrix,))
+            cursor.callproc("insert_songs", (*inserted_matrix,))
 
             response["album_id"] = inserted["album_id"]
             response["detail"] = "album %s created" % inserted["title"]
 
         case "PATCH":
-            cursor.callproc("get_album", (form['album_id'],))
+            cursor.callproc("get_album", (form["album_id"],))
             data = cursor.fetchone()
             album, songs = data["album"], data["songs"]
             new_songs = form_songs_to_list(form)
 
-            existing_tracks = [existing_song["track"]
-                               for existing_song in songs]
+            existing_tracks = [existing_song["track"] for existing_song in songs]
 
             new_tracks = [new_song["track"] for new_song in new_songs]
 
             to_add_tracks = [
-                track for track in new_tracks if track not in existing_tracks]
+                track for track in new_tracks if track not in existing_tracks
+            ]
 
             to_delete_tracks = [
-                track for track in existing_tracks if track not in new_tracks]
+                track for track in existing_tracks if track not in new_tracks
+            ]
 
-            to_update_tracks = [new_song for new_song, old_song in zip(
-                new_songs, songs) if new_song["song"] != old_song["song"] or new_song["duration"] != old_song["duration"]]
+            to_update_tracks = [
+                new_song
+                for new_song, old_song in zip(new_songs, songs)
+                if new_song["song"] != old_song["song"]
+                or new_song["duration"] != old_song["duration"]
+            ]
 
-            fields_to_change = {field: form[field] if str(album[field]) != form[field] else None for field in [
-                "title", "release_year", "price", "artist_id"]}
+            fields_to_change = {
+                field: form[field] if str(album[field]) != form[field] else None
+                for field in ["title", "release_year", "price", "artist_id"]
+            }
             fields_to_change["photo"] = filename if album["photo"] != filename else None
 
             should_del_tracks = len(to_delete_tracks) > 0
             should_update_tracks = len(to_update_tracks) > 0
             should_add_tracks = len(to_add_tracks) > 0
 
-            should_update_photo_file = filename != album["photo"] or form["photo"].size != os.stat(
-                "/var/www/bm/common/%s" % album["photo"]).st_size
-            should_rename_photo = any(
-                [fields_to_change["artist_id"], fields_to_change["title"]]) and not should_update_photo_file
+            should_update_photo_file = (
+                filename != album["photo"]
+                or form["photo"].size
+                != os.stat("/var/www/bm/common/%s" % album["photo"]).st_size
+            )
+            should_rename_photo = (
+                any([fields_to_change["artist_id"], fields_to_change["title"]])
+                and not should_update_photo_file
+            )
 
             should_update_album = any(fields_to_change.values())
 
             if should_del_tracks:
-                cursor.callproc(
-                    "delete_songs", (album_id, to_delete_tracks))
+                cursor.callproc("delete_songs", (album_id, to_delete_tracks))
 
             if should_update_tracks:
                 updated_matrix = dict_list_to_matrix(to_update_tracks)
@@ -172,10 +213,10 @@ async def manage_album(request: Request, album_id=None):
 
             if should_add_tracks:
                 filtered = [
-                    track for track in new_songs if track["track"] in to_add_tracks]
+                    track for track in new_songs if track["track"] in to_add_tracks
+                ]
                 inserted_matrix = dict_list_to_matrix(filtered)
-                cursor.callproc(
-                    "insert_songs", (* inserted_matrix,))
+                cursor.callproc("insert_songs", (*inserted_matrix,))
 
             if should_update_photo_file:
                 content = form["photo"].file.read()
@@ -188,10 +229,18 @@ async def manage_album(request: Request, album_id=None):
                 os.rename(old_file, new_file)
 
             if should_update_album:
-                cursor.callproc(
-                    "update_album", (album_id, * fields_to_change.values()))
+                cursor.callproc("update_album", (album_id, *fields_to_change.values()))
 
-            if any([should_del_tracks, should_update_tracks, should_add_tracks, should_rename_photo, should_update_photo_file, should_update_album]):
+            if any(
+                [
+                    should_del_tracks,
+                    should_update_tracks,
+                    should_add_tracks,
+                    should_rename_photo,
+                    should_update_photo_file,
+                    should_update_album,
+                ]
+            ):
                 cursor.callproc("update_modified", (album_id,))
                 updated_album = cursor.fetchone()
                 response["detail"] = "album %s updated" % updated_album["title"]
@@ -205,7 +254,9 @@ async def manage_album(request: Request, album_id=None):
 
 @admin.get("/artists")
 @db_functions.tsql
-async def admin_get_artists(page: int = None, sort: str = None, direction: str = None, query: str = None):
+async def admin_get_artists(
+    page: int = None, sort: str = None, direction: str = None, query: str = None
+):
 
     response = {}
 
@@ -213,7 +264,13 @@ async def admin_get_artists(page: int = None, sort: str = None, direction: str =
         cursor.callproc("get_artists", (page, sort, direction, query))
         response["artists"] = cursor.fetchone()["artists"]
 
-        cursor.callproc("get_pages", ('artists', query,))
+        cursor.callproc(
+            "get_pages",
+            (
+                "artists",
+                query,
+            ),
+        )
         response["pages"] = cursor.fetchone()["pages"]
 
     else:
@@ -287,12 +344,17 @@ async def get_purchase_order_line(purchase_order, album_id):
 @admin.get("/dispatch-cost")
 async def get_dispatch_costs(items: str = None):
     params = {
-        "client_id": "bm-prod" if os.path.exists('/var/lib/cloud/instance') else "bm-dev",
-        "items": items
+        "client_id": (
+            "bm-prod" if os.path.exists("/var/lib/cloud/instance") else "bm-dev"
+        ),
+        "items": items,
     }
 
-    lambda_response = requests.get(dotenv_values(".env")[
-        "LAMBDA_SERVER"]+"/client/dispatch-cost", headers={"Authorization": get_hmac(params)}, params=params)
+    lambda_response = requests.get(
+        dotenv_values(".env")["LAMBDA_SERVER"] + "/client/dispatch-cost",
+        headers={"Authorization": get_hmac(params)},
+        params=params,
+    )
 
     if lambda_response.status_code != 200:
         raise Exception("there was an error in the request")
@@ -309,20 +371,26 @@ async def send_dispatch_update(request: Request, dispatch_id):
     status = cursor.fetchone()["status"]
 
     if status != "shipped":
-        raise Exception(
-            "this dispatch must be in 'shipped' status to confirm receipt")
+        raise Exception("this dispatch must be in 'shipped' status to confirm receipt")
 
     data = await request.json()
-    payload = json.dumps({
-        "client_id": "bm-prod" if os.path.exists('/var/lib/cloud/instance') else "bm-dev",
-        "status": data["status"]
-    })
+    payload = json.dumps(
+        {
+            "client_id": (
+                "bm-prod" if os.path.exists("/var/lib/cloud/instance") else "bm-dev"
+            ),
+            "status": data["status"],
+        }
+    )
 
     detail = None
-    lambda_response = requests.patch(dotenv_values(".env")[
-                                     "LAMBDA_SERVER"]+"/client/dispatches/%s" % dispatch_id, data=payload, headers={"Authorization": get_hmac(payload)})
+    lambda_response = requests.patch(
+        dotenv_values(".env")["LAMBDA_SERVER"] + "/client/dispatches/%s" % dispatch_id,
+        data=payload,
+        headers={"Authorization": get_hmac(payload)},
+    )
 
-    if lambda_response.headers.get('content-type') == "application/json":
+    if lambda_response.headers.get("content-type") == "application/json":
         detail = lambda_response.json()["message"]
     else:
         detail = "there was an error parsing a response."
@@ -364,19 +432,27 @@ async def send_purchase_order(request: Request, purchase_order=None):
             others_orders = cursor.fetchone()["count"]
 
             if others_orders > 0:
-                return JSONResponse({"detail": "no more than one pending purchase order can exist"})
+                return JSONResponse(
+                    {"detail": "no more than one pending purchase order can exist"}
+                )
 
             insert_command = "insert into purchase_orders (status,shipping_cost,estimated_receipt) values ('pending-supplier',%s,%s) returning purchase_order,modified,status;"
 
             cursor.execute(
-                insert_command, (form["dispatch_cost"], form["estimated_delivery"]))
+                insert_command, (form["dispatch_cost"], form["estimated_delivery"])
+            )
             inserted = cursor.fetchone()
 
             inserts = "insert into purchase_order_lines (line,purchase_order,album_id,quantity,line_total) values "
 
             for n, line in enumerate(po_rows):
                 insert = "(%s,%s,%s,%s,%s)" % (
-                    line["line"], inserted["purchase_order"], line["album_id"], line["quantity"], line["line_total"])
+                    line["line"],
+                    inserted["purchase_order"],
+                    line["album_id"],
+                    line["quantity"],
+                    line["line_total"],
+                )
                 inserts += insert
                 if n == len(po_rows) - 1:
                     inserts += ";"
@@ -386,19 +462,29 @@ async def send_purchase_order(request: Request, purchase_order=None):
             cursor.execute(inserts)
 
         case "PATCH":
-            keys = ['line', 'album_id', 'quantity', 'line_total']
-            db_rows = [dict(filter(lambda item: item[0] in keys, line.items()))
-                       for line in po_rows]
+            keys = ["line", "album_id", "quantity", "line_total"]
+            db_rows = [
+                dict(filter(lambda item: item[0] in keys, line.items()))
+                for line in po_rows
+            ]
 
-            check_query = "select status from purchase_orders where purchase_order = %s;"
-            cursor.execute(check_query, (purchase_order, ))
+            check_query = (
+                "select status from purchase_orders where purchase_order = %s;"
+            )
+            cursor.execute(check_query, (purchase_order,))
             existing_po = cursor.fetchone()
 
             if existing_po["status"] == "confirmed":
-                return JSONResponse({"detail": "this purchase order is already completed"})
+                return JSONResponse(
+                    {"detail": "this purchase order is already completed"}
+                )
 
             elif existing_po["status"] == "pending-supplier":
-                return JSONResponse({"detail": "this purchase order is waiting on the supplier to confirm line items"})
+                return JSONResponse(
+                    {
+                        "detail": "this purchase order is waiting on the supplier to confirm line items"
+                    }
+                )
 
             existing_lines_query = "select line,album_id,quantity,line_total::float,confirmed_quantity from purchase_order_lines where purchase_order = %s order by line asc;"
             cursor.execute(existing_lines_query, (purchase_order,))
@@ -406,7 +492,11 @@ async def send_purchase_order(request: Request, purchase_order=None):
 
             for n, new_line in enumerate(db_rows):
                 confirmed_quantity = search(
-                    existing_lines, "album_id", new_line["album_id"], "confirmed_quantity")
+                    existing_lines,
+                    "album_id",
+                    new_line["album_id"],
+                    "confirmed_quantity",
+                )
                 new_line["confirmed_quantity"] = confirmed_quantity
                 db_rows[n] = new_line
 
@@ -420,14 +510,21 @@ async def send_purchase_order(request: Request, purchase_order=None):
 
             old_lines = [old_line["line"] for old_line in existing_lines]
             to_add_lines = [
-                new_line for new_line in db_rows if new_line["line"] not in old_lines]
+                new_line for new_line in db_rows if new_line["line"] not in old_lines
+            ]
 
             new_lines = [new_line["line"] for new_line in db_rows]
-            to_delete_lines = [old_line["line"]
-                               for old_line in existing_lines if old_line["line"] not in new_lines]
+            to_delete_lines = [
+                old_line["line"]
+                for old_line in existing_lines
+                if old_line["line"] not in new_lines
+            ]
 
-            action = {"update": len(to_update_lines) > 0, "add": len(
-                to_add_lines) > 0, "delete": len(to_delete_lines) > 0}
+            action = {
+                "update": len(to_update_lines) > 0,
+                "add": len(to_add_lines) > 0,
+                "delete": len(to_delete_lines) > 0,
+            }
 
             if action["update"]:
                 update_command = """update purchase_order_lines
@@ -459,51 +556,68 @@ async def send_purchase_order(request: Request, purchase_order=None):
 
             elif action["delete"]:
                 delete_command = "delete from purchase_order_lines where line in (select unnest(ARRAY[%s])) and purchase_order = %s;"
-                cursor.execute(
-                    delete_command, (to_delete_lines, purchase_order))
+                cursor.execute(delete_command, (to_delete_lines, purchase_order))
 
             if any(action.values()):
-                new_modified = datetime.now(
-                    timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-                update_po_command = "update purchase_orders set modified = %s, status = %s, \
+                new_modified = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                update_po_command = (
+                    "update purchase_orders set modified = %s, status = %s, \
                     shipping_cost = %s,estimated_receipt = %s where purchase_order = %s \
                     returning purchase_order,modified,status;"
-                cursor.execute(update_po_command, (new_modified,
-                                                   'pending-supplier', form["dispatch_cost"], form["estimated_delivery"], purchase_order))
+                )
+                cursor.execute(
+                    update_po_command,
+                    (
+                        new_modified,
+                        "pending-supplier",
+                        form["dispatch_cost"],
+                        form["estimated_delivery"],
+                        purchase_order,
+                    ),
+                )
                 inserted = cursor.fetchone()
 
             else:
                 return JSONResponse({"detail": "no changes made"})
 
-    payload = json.dumps({
-        "client_id": "bm-prod" if os.path.exists('/var/lib/cloud/instance') else "bm-dev",
-        "purchase_order_id": inserted["purchase_order"],
-        "status": inserted["status"],
-        "modified": inserted["modified"].strftime("%Y-%m-%d %H:%M:%S"),
-        "data": po_rows,
-        "estimated_delivery": form["estimated_delivery"],
-        "dispatch_cost": float(form["dispatch_cost"])
-    })
+    payload = json.dumps(
+        {
+            "client_id": (
+                "bm-prod" if os.path.exists("/var/lib/cloud/instance") else "bm-dev"
+            ),
+            "purchase_order_id": inserted["purchase_order"],
+            "status": inserted["status"],
+            "modified": inserted["modified"].strftime("%Y-%m-%d %H:%M:%S"),
+            "data": po_rows,
+            "estimated_delivery": form["estimated_delivery"],
+            "dispatch_cost": float(form["dispatch_cost"]),
+        }
+    )
 
-    lambda_response = requests.put(dotenv_values(".env")[
-        "LAMBDA_SERVER"]+"/client/purchase-orders", data=payload, headers={"Authorization": get_hmac(payload)})
+    lambda_response = requests.put(
+        dotenv_values(".env")["LAMBDA_SERVER"] + "/client/purchase-orders",
+        data=payload,
+        headers={"Authorization": get_hmac(payload)},
+    )
 
-    if lambda_response.headers.get('content-type') == "application/json":
+    if lambda_response.headers.get("content-type") == "application/json":
         detail = lambda_response.json()["message"]
     else:
         detail = "there was an error parsing a response."
 
     match lambda_response.status_code:
         case 200:
-            return JSONResponse({"detail": detail, "purchase_order": inserted["purchase_order"]}, 200)
+            return JSONResponse(
+                {"detail": detail, "purchase_order": inserted["purchase_order"]}, 200
+            )
         case _:
             raise Exception(detail)
 
 
-@admin.delete("/artists/{artist_id}")
+@admin.delete("/artists/{artist_id}", response_model=DetailResponse)
 @db_functions.tsql
-async def delete_artist(artist_id):
+async def delete_artist(artist_id) -> DetailResponse:
     delete_command = "delete from artists where artist_id = %s returning name;"
     cursor.execute(delete_command, (artist_id,))
     name = cursor.fetchone()["name"]
-    return JSONResponse({"detail": "artist %s deleted" % name}, 200)
+    return {"detail": "artist %s deleted" % name}

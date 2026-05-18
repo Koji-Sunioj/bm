@@ -1,4 +1,3 @@
-import traceback
 import db_functions
 from jose import jwt
 from db_functions import cursor
@@ -9,6 +8,8 @@ from fastapi.responses import JSONResponse
 from datetime import timedelta, datetime, timezone
 from fastapi import APIRouter, Request, Response
 
+from models import DetailResponse
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 fe_secret = dotenv_values(".env")["FE_SECRET"]
 
@@ -16,7 +17,7 @@ auth = APIRouter(prefix="/auth")
 
 
 @auth.post("/check-token/admin")
-async def check_admin_token(request: Request, response: Response):
+async def check_admin_token(request: Request, response: Response) -> Response:
     try:
         jwt_payload = await decode_token(request)
         decode_role(jwt_payload["role"])
@@ -27,7 +28,7 @@ async def check_admin_token(request: Request, response: Response):
 
 
 @auth.post("/check-token")
-async def check_token(request: Request, response: Response):
+async def check_token(request: Request, response: Response) -> Response:
     try:
         await decode_token(request)
         response.status_code = 200
@@ -36,9 +37,9 @@ async def check_token(request: Request, response: Response):
     return response
 
 
-@auth.post("/sign-in")
+@auth.post("/sign-in", response_model=DetailResponse)
 @db_functions.tsql
-async def sign_in(request: Request):
+async def sign_in(request: Request, response: Response) -> DetailResponse:
     content = await request.json()
     cursor.callproc("get_user", (content["username"], "password"))
 
@@ -50,21 +51,25 @@ async def sign_in(request: Request):
 
     now = datetime.now(timezone.utc)
     expires = now + timedelta(minutes=180)
-    jwt_payload = {"sub": user["username"], "iat": now,
-                   "exp": expires, "created": str(user["created"])}
+    jwt_payload = {
+        "sub": user["username"],
+        "iat": now,
+        "exp": expires,
+        "created": str(user["created"]),
+    }
     if user["role"] == "admin":
         jwt_payload["role"] = encode_role(user["role"])
     token = jwt.encode(jwt_payload, fe_secret)
 
     token_string = "token=%s; Path=/; SameSite=Lax" % token
-    headers = {"Set-Cookie": token_string}
+    response.headers["Set-Cookie"] = token_string
 
-    return JSONResponse(content={"detail": "you're signed in"}, headers=headers, status_code=200)
+    return {"detail": "you're signed in"}
 
 
-@auth.post("/register")
+@auth.post("/register", response_model=DetailResponse)
 @db_functions.tsql
-async def register(request: Request):
+async def register(request: Request) -> DetailResponse:
     content = await request.json()
     guest_list = dotenv_values(".env")["GUEST_LIST"].split(",")
     guest_dict = {key.split(":")[0]: key.split(":")[1] for key in guest_list}
@@ -72,8 +77,12 @@ async def register(request: Request):
         raise AuthorizationError("client not on guest list")
     role = guest_dict[content["username"]]
     cursor.callproc(
-        'create_user', (content["username"], pwd_context.hash(content["password"]), role))
+        "create_user",
+        (content["username"], pwd_context.hash(content["password"]), role),
+    )
     created = cursor.rowcount > 0
-    code, detail = (400, "error creating user") if not created else (
-        200, "user created")
-    return JSONResponse({"detail": detail}, code)
+
+    if not created:
+        raise Exception("error creating user")
+
+    return {"detail": "user created"}

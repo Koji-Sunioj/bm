@@ -1,11 +1,15 @@
 import db_functions
 from utils import parse_samples, verify_token, decode_token
-
-from models import UserResponse, ArtistResponse, AlbumsResponse, AlbumResponse
-from pydantic import create_model
-
+from models import (
+    UserResponse,
+    ArtistResponse,
+    AlbumsResponse,
+    AlbumResponse,
+    OrderResponse,
+    DetailResponse,
+    AddToCartResponse,
+)
 from db_functions import cursor
-from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Request, Depends
 
 client = APIRouter(prefix="/client")
@@ -24,10 +28,11 @@ async def get_user(request: Request) -> UserResponse:
 async def get_artist(artist_id: int, view: str) -> ArtistResponse:
     cursor.callproc("get_artist", (artist_id, view))
     artist = cursor.fetchone()["artist"]
+    print(artist)
     return {"artist": artist}
 
 
-@client.get("/albums", response_model=AlbumsResponse,response_model_exclude_none=True)
+@client.get("/albums", response_model=AlbumsResponse, response_model_exclude_none=True)
 @db_functions.tsql
 async def get_albums(
     request: Request,
@@ -47,13 +52,16 @@ async def get_albums(
     albums["pages"] = cursor.fetchone()["pages"]
     cursor.callproc("get_albums", (page, sort, direction, query))
     albums["data"] = cursor.fetchall()
-    print(albums)
     return {"albums": albums["data"], "pages": albums["pages"]}
 
 
-@client.get("/albums/{album_id}",response_model=AlbumResponse, response_model_exclude_none=True)
+@client.get(
+    "/albums/{album_id}", response_model=AlbumResponse, response_model_exclude_none=True
+)
 @db_functions.tsql
-async def get_album(album_id, request: Request, cart: str = None, previews: str = None) -> AlbumResponse:
+async def get_album(
+    album_id, request: Request, cart: str = None, previews: str = None
+) -> AlbumResponse:
     cursor.callproc("get_album", (album_id,))
     album = cursor.fetchone()["album"]
     parsed_album = parse_samples(album) if previews == "true" else album
@@ -69,26 +77,28 @@ async def get_album(album_id, request: Request, cart: str = None, previews: str 
             cart = cursor.fetchone()
             parsed_album.update(cart)
     except Exception as error:
-        print(error)
         pass
 
-    print(album)
-
-    return {"album": parsed_album} 
+    return {"album": parsed_album}
 
 
-@client.get("/orders", dependencies=[Depends(verify_token)])
+@client.get(
+    "/orders", dependencies=[Depends(verify_token)], response_model=OrderResponse
+)
 @db_functions.tsql
-async def get_orders_cart(request: Request):
+async def get_orders_cart(request: Request) -> OrderResponse:
     cursor.callproc("get_orders_and_cart", (request.state.sub,))
     orders_cart = cursor.fetchone()
-    print(orders_cart)
-    return JSONResponse(orders_cart, 200)
+    return orders_cart
 
 
-@client.post("/cart/checkout", dependencies=[Depends(verify_token)])
+@client.post(
+    "/cart/checkout",
+    dependencies=[Depends(verify_token)],
+    response_model=DetailResponse,
+)
 @db_functions.tsql
-async def checkout_cart_items(request: Request):
+async def checkout_cart_items(request: Request) -> DetailResponse:
     cursor.callproc("get_user", (request.state.sub, "checkout"))
     data = cursor.fetchone()["bm_user"]
     user_id, albums = data["user_id"], data["albums"]
@@ -106,12 +116,17 @@ async def checkout_cart_items(request: Request):
         if cursor.rowcount != 0
         else "no order to checkout"
     )
-    return JSONResponse({"detail": response}, 200)
+
+    return {"detail": response}
 
 
-@client.post("/cart/{album_id}/add", dependencies=[Depends(verify_token)])
+@client.post(
+    "/cart/{album_id}/add",
+    dependencies=[Depends(verify_token)],
+    response_model=AddToCartResponse,
+)
 @db_functions.tsql
-async def add_cart_item(request: Request, album_id):
+async def add_cart_item(request: Request, album_id: str) -> AddToCartResponse:
     cursor.callproc("get_user", (request["state"]["sub"], "owner"))
     user_id = cursor.fetchone()["bm_user"]["user_id"]
 
@@ -125,12 +140,16 @@ async def add_cart_item(request: Request, album_id):
 
     cursor.callproc("update_stock_quantity", (user_id, album_id, -1))
     stock_cart = cursor.fetchone()
-    return JSONResponse(stock_cart, 200)
+    return stock_cart
 
 
-@client.post("/cart/{album_id}/remove", dependencies=[Depends(verify_token)])
+@client.post(
+    "/cart/{album_id}/remove",
+    dependencies=[Depends(verify_token)],
+    response_model=AddToCartResponse,
+)
 @db_functions.tsql
-async def del_cart_item(request: Request, album_id):
+async def del_cart_item(request: Request, album_id: int) -> AddToCartResponse:
     cursor.callproc("get_user", (request["state"]["sub"], "owner"))
     user_id = cursor.fetchone()["bm_user"]["user_id"]
 
@@ -141,4 +160,4 @@ async def del_cart_item(request: Request, album_id):
     if stock_cart["cart"] == 0:
         cursor.callproc("remove_cart_items", (user_id, album_id))
 
-    return JSONResponse(stock_cart, 200)
+    return stock_cart

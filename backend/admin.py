@@ -7,14 +7,24 @@ from db_functions import cursor
 from datetime import datetime, timezone
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Request, Depends, Response
-from models import DetailResponse
+from models import (
+    DetailResponse,
+    AdminArtistPatchResponse,
+    AdminAlbumPatchResponse,
+    AdminAlbums,
+    AdminDispatches,
+    AdminPurchaseOrder,
+    AdminPurchaseOrders,
+    AdminDispatchCost,
+    AdminPurchaseOrderPatchResponse,
+)
 
 admin = APIRouter(prefix="/admin", dependencies=[Depends(verify_admin_token)])
 
 
-@admin.delete("/albums/{album_id}")
+@admin.delete("/albums/{album_id}", response_model=DetailResponse)
 @db_functions.tsql
-async def delete_album(album_id):
+async def delete_album(album_id: int) -> DetailResponse:
     cursor.callproc("get_album", (album_id,))
     album = cursor.fetchone()["album"]
     del_command = "delete from albums where album_id = %s"
@@ -29,10 +39,10 @@ async def delete_album(album_id):
     return JSONResponse({"detail": detail}, 200)
 
 
-@admin.post("/artists")
-@admin.patch("/artists/{artist_id}")
+@admin.post("/artists", response_model=AdminArtistPatchResponse)
+@admin.patch("/artists/{artist_id}", response_model=AdminArtistPatchResponse)
 @db_functions.tsql
-async def create_artist(request: Request, artist_id=None):
+async def create_artist(request: Request, artist_id=None) -> AdminArtistPatchResponse:
     form = await request.form()
 
     check_query = "select artist_id from artists where lower(name) = lower(%s);"
@@ -96,13 +106,21 @@ async def create_artist(request: Request, artist_id=None):
                     old_file = "/var/www/bm/common/%s" % file["old_file"]
                     os.rename(old_file, new_file)
 
-    return response 
+    return response
 
 
-@admin.post("/albums")
-@admin.patch("/albums/{album_id}")
+@admin.post(
+    "/albums", response_model=AdminAlbumPatchResponse, response_model_exclude_none=True
+)
+@admin.patch(
+    "/albums/{album_id}",
+    response_model=AdminAlbumPatchResponse,
+    response_model_exclude_none=True,
+)
 @db_functions.tsql
-async def manage_album(request: Request, album_id=None):
+async def manage_album(
+    request: Request, album_id: int = None
+) -> AdminAlbumPatchResponse:
     form = await request.form()
 
     cursor.callproc("get_artist", (form["artist_id"], "user"))
@@ -160,7 +178,7 @@ async def manage_album(request: Request, album_id=None):
         case "PATCH":
             cursor.callproc("get_album", (form["album_id"],))
             data = cursor.fetchone()
-            album, songs = data["album"], data["songs"]
+            album, songs = data["album"], data["album"]["songs"]
             new_songs = form_songs_to_list(form)
 
             existing_tracks = [existing_song["track"] for existing_song in songs]
@@ -249,15 +267,14 @@ async def manage_album(request: Request, album_id=None):
             else:
                 response["detail"] = "there was nothing to update"
 
-    return JSONResponse(response, 200)
+    return response
 
 
-@admin.get("/artists")
+@admin.get("/artists", response_model=AdminAlbums, response_model_exclude_none=True)
 @db_functions.tsql
 async def admin_get_artists(
     page: int = None, sort: str = None, direction: str = None, query: str = None
-):
-
+) -> AdminAlbums:
     response = {}
 
     if all([page, sort, direction]):
@@ -276,37 +293,40 @@ async def admin_get_artists(
     else:
         cursor.callproc("get_artists")
         response["artists"] = cursor.fetchone()["artists"]
+    return response
 
-    return JSONResponse(response, 200)
 
-
-@admin.get("/dispatches")
+@admin.get("/dispatches", response_model=AdminDispatches)
 @db_functions.tsql
-async def get_dispatches():
+async def get_dispatches() -> AdminDispatches:
     query = "select dispatches.purchase_order,dispatches.dispatch_id,dispatches.status,dispatches.address,\
         purchase_orders.estimated_receipt::varchar,purchase_orders.shipping_cost::float from dispatches join\
         purchase_orders on purchase_orders.purchase_order = dispatches.purchase_order order by estimated_receipt desc;"
 
     cursor.execute(query)
     dispatches = cursor.fetchall()
-    return JSONResponse({"dispatches": dispatches}, 200)
+    return {"dispatches": dispatches}
 
 
-@admin.get("/purchase-orders")
+@admin.get(
+    "/purchase-orders",
+    response_model=AdminPurchaseOrders,
+    response_model_exclude_none=True,
+)
 @db_functions.tsql
-async def get_purchase_orders():
+async def get_purchase_orders() -> AdminPurchaseOrders:
     query = "select purchase_orders.purchase_order,modified::varchar,status,count(distinct(album_id)) \
         as albums from purchase_orders join purchase_order_lines on purchase_orders.purchase_order \
         = purchase_order_lines.purchase_order group by purchase_orders.purchase_order,status,modified order by modified desc;"
 
     cursor.execute(query)
     purchase_orders = cursor.fetchall()
-    return JSONResponse({"purchase_orders": purchase_orders}, 200)
+    return {"purchase_orders": purchase_orders}
 
 
-@admin.get("/purchase-orders/{purchase_order}")
+@admin.get("/purchase-orders/{purchase_order}", response_model=AdminPurchaseOrder)
 @db_functions.tsql
-async def get_purchase_order(purchase_order):
+async def get_purchase_order(purchase_order) -> AdminPurchaseOrder:
     query = "select purchase_orders.purchase_order, purchase_orders.status,purchase_orders.modified::varchar, \
 		purchase_orders.estimated_receipt::varchar,purchase_orders.shipping_cost::float, \
         sum(purchase_order_lines.line_total)::float as line_total,\
@@ -323,26 +343,11 @@ async def get_purchase_order(purchase_order):
 
     cursor.execute(query, (purchase_order,))
     purchase_order = cursor.fetchone()
-    return JSONResponse(purchase_order, 200)
+    return purchase_order
 
 
-@admin.get("/purchase-orders/{purchase_order}/{album_id}")
-@db_functions.tsql
-async def get_purchase_order_line(purchase_order, album_id):
-    query = "select album_id,quantity,confirmed_quantity,line_total::float \
-        from purchase_orders join purchase_order_lines on \
-        purchase_orders.purchase_order = purchase_order_lines.purchase_order \
-        where purchase_orders.purchase_order = %s and album_id = %s;"
-
-    cursor.execute(query, (purchase_order, album_id))
-    line_item = cursor.fetchone()
-    response = line_item if line_item != None else {"lines": 0}
-
-    return JSONResponse(response, 200)
-
-
-@admin.get("/dispatch-cost")
-async def get_dispatch_costs(items: str = None):
+@admin.get("/dispatch-cost", response_model=AdminDispatchCost)
+async def get_dispatch_costs(items: str = None) -> AdminDispatchCost:
     params = {
         "client_id": (
             "bm-prod" if os.path.exists("/var/lib/cloud/instance") else "bm-dev"
@@ -359,10 +364,10 @@ async def get_dispatch_costs(items: str = None):
     if lambda_response.status_code != 200:
         raise Exception("there was an error in the request")
 
-    return JSONResponse(lambda_response.json())
+    return lambda_response.json()
 
 
-@admin.patch("/dispatches/{dispatch_id}")
+@admin.patch("/dispatches/{dispatch_id}", response_model=DetailResponse)
 @db_functions.tsql
 async def send_dispatch_update(request: Request, dispatch_id):
 
@@ -413,13 +418,17 @@ async def send_dispatch_update(request: Request, dispatch_id):
     update_dispatch_command = "update dispatches set status = %s where dispatch_id = %s"
     cursor.execute(update_dispatch_command, (data["status"], dispatch_id))
 
-    return JSONResponse({"detail": detail}, 200)
+    return {"detail": detail}
 
 
-@admin.post("/purchase-orders")
-@admin.patch("/purchase-orders/{purchase_order}")
+@admin.post("/purchase-orders", response_model=AdminPurchaseOrderPatchResponse)
+@admin.patch(
+    "/purchase-orders/{purchase_order}", response_model=AdminPurchaseOrderPatchResponse
+)
 @db_functions.tsql
-async def send_purchase_order(request: Request, purchase_order=None):
+async def send_purchase_order(
+    request: Request, purchase_order=None
+) -> AdminPurchaseOrderPatchResponse:
     form = await request.form()
     po_rows = form_po_rows_to_list(form)
 
@@ -576,7 +585,6 @@ async def send_purchase_order(request: Request, purchase_order=None):
                     ),
                 )
                 inserted = cursor.fetchone()
-
             else:
                 return JSONResponse({"detail": "no changes made"})
 
@@ -607,9 +615,7 @@ async def send_purchase_order(request: Request, purchase_order=None):
 
     match lambda_response.status_code:
         case 200:
-            return JSONResponse(
-                {"detail": detail, "purchase_order": inserted["purchase_order"]}, 200
-            )
+            return {"detail": detail, "purchase_order": inserted["purchase_order"]}
         case _:
             raise Exception(detail)
 

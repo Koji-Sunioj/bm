@@ -516,7 +516,6 @@ const getDispatch = async () => {
 
     const response = await fetch(`/api/admin/dispatch-cost?items=${items}`);
     const { estimated_delivery, freight_cost } = await response.json();
-    console.log(freight_cost);
     document.querySelector("[name=dispatch_cost]").value = freight_cost;
     document.querySelector("[name=estimated_delivery]").value =
         estimated_delivery;
@@ -747,7 +746,6 @@ const changeAlbum = async () => {
     } = await fetch(`/api/client/albums/${albumId}`).then((response) =>
         response.json(),
     );
-    //add button
     document.querySelector("[name=stock]").value = stock;
     document.querySelector("[name=price]").value = price;
 
@@ -800,56 +798,19 @@ const addLine = async (event) => {
         const artistId = artistSelect.value;
         const albumText = albumSelect.options[albumSelect.selectedIndex].text;
 
-        let action = purchaseOrder.length > 0 ? "fetch" : "add";
-
-        switch (action) {
-            case "fetch":
-                const data = await fetch(
-                    `/api/admin/purchase-orders/${purchaseOrder}/${albumId}`,
-                ).then((response) => response.json());
-                if (
-                    Object.keys(data).every((key) =>
-                        [
-                            "album_id",
-                            "quantity",
-                            "confirmed_quantity",
-                            "line_total",
-                        ].includes(key),
-                    )
-                ) {
-                    parsePOLine(
-                        [
-                            artistId,
-                            artistText,
-                            albumId,
-                            albumText,
-                            data["quantity"],
-                            data["confirmed_quantity"],
-                            data["line_total"].toFixed(2),
-                        ],
-                        newRow,
-                        nLines,
-                    );
-                    break;
-                } else {
-                    action = "add";
-                }
-            case "add":
-                parsePOLine(
-                    [
-                        artistId,
-                        artistText,
-                        albumId,
-                        albumText,
-                        1,
-                        null,
-                        (price * 0.7).toFixed(2),
-                    ],
-                    newRow,
-                    nLines,
-                );
-                break;
-        }
+        parsePOLine(
+            [
+                artistId,
+                artistText,
+                albumId,
+                albumText,
+                1,
+                null,
+                (price * 0.7).toFixed(2),
+            ],
+            newRow,
+            nLines,
+        );
         document.getElementById("purchase-order-lines").appendChild(newRow);
     }
     handleAddDelButtons();
@@ -1132,10 +1093,10 @@ const renderAlbumForm = async () => {
             const [songOne, durationOne] = Array.from(
                 document.querySelectorAll("[name=song_1],[name=duration_1]"),
             );
-            const firstSong = songs[0];
-            songOne.value = firstSong.song;
-            durationOne.value =
-                firstSong.duration !== null ? toMMSS(firstSong.duration) : "";
+            songOne.value = songs[0].song;
+            durationOne.value = songs[0].hasOwnProperty("duration")
+                ? toMMSS(songs[0].duration)
+                : "";
 
             Object.keys(songs).forEach((track, n) => {
                 n !== 0 && addSong(songs[track]);
@@ -1607,7 +1568,9 @@ const renderAlbum = async () => {
                         break;
                     case "song":
                         text = `${dbSong[item]}`;
-                        if (dbSong["preview"] !== null) {
+                        console.log(dbSong);
+                        console.log(dbSong["preview"]);
+                        if (dbSong["preview"] !== undefined) {
                             renderMusicPlayer(dbSong, infoDiv);
                             const songButton = element("button");
                             songButton.onclick = () => {

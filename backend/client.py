@@ -28,7 +28,6 @@ async def get_user(request: Request) -> UserResponse:
 async def get_artist(artist_id: int, view: str) -> ArtistResponse:
     cursor.callproc("get_artist", (artist_id, view))
     artist = cursor.fetchone()["artist"]
-    print(artist)
     return {"artist": artist}
 
 
@@ -68,7 +67,6 @@ async def get_album(
 
     try:
         if "cookie" in request.headers and cart == "get":
-            print("hey")
             jwt_payload = await decode_token(request)
             cursor.callproc(
                 "get_cart_count",

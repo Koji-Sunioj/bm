@@ -1,14 +1,13 @@
 import db_functions
-from jose import jwt
+from models import DetailResponse
 from db_functions import cursor
+from utils import decode_role, decode_token, encode_role, AuthorizationError
+
+from jose import jwt
 from dotenv import dotenv_values
 from passlib.context import CryptContext
-from utils import decode_role, decode_token, encode_role, AuthorizationError
-from fastapi.responses import JSONResponse
 from datetime import timedelta, datetime, timezone
 from fastapi import APIRouter, Request, Response
-
-from models import DetailResponse
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 fe_secret = dotenv_values(".env")["FE_SECRET"]

@@ -46,7 +46,9 @@ class AlbumResponse(BaseModel):
 class ArtistForAdmin(BaseModel):
     artist_id: int
     name: str
-    bio: str
+    bio: str | None = None
+    modified: str | None = None
+    albums: int | None = None
 
 class Artist(BaseModel):
     name: str
@@ -86,3 +88,85 @@ class AddToCartResponse(BaseModel):
     remaining: int
     cart: int
 
+class AdminArtistPatchResponse(BaseModel):
+    detail: str
+    artist_id: int | None = None 
+
+class AdminAlbumPatchResponse(BaseModel):
+    detail: str
+    album_id: int | None = None 
+
+class AdminPurchaseOrderPatchResponse(BaseModel):
+    detail: str
+    purchase_order: int
+
+
+class AdminAlbums(BaseModel):
+    artists: List[ArtistForAdmin]
+    pages: int | None = None
+
+class AdminDispatch(BaseModel):
+    purchase_order: int
+    dispatch_id: str
+    status: str
+    address: str
+    estimated_receipt: str
+    shipping_cost: float
+
+class AdminDispatches(BaseModel):
+    dispatches: List[AdminDispatch]
+
+class AdminPurchaseOrderLine(BaseModel):
+    line: int
+    artist_id: int
+    name: str
+    album_id: int
+    title: str
+    quantity: int
+    line_total: float
+    confirmed: int | None = None
+
+
+class AdminPurchaseOrder(BaseModel):
+    purchase_order: int
+    modified: str
+    status: str
+    albums: int | None = None
+    lines: List[AdminPurchaseOrderLine] | None = None
+    estimated_receipt: str | None = None 
+    shipping_cost: float | None = None 
+    line_total: float | None = None
+    invoice_total: float | None = None
+
+class AdminPurchaseOrders(BaseModel):
+    purchase_orders: List[AdminPurchaseOrder]
+
+class AdminDispatchCost(BaseModel):
+    freight_cost: float
+    estimated_delivery: str
+    weight_grams: int
+
+
+"""
+{
+    "purchase_order": 85,
+    "status": "pending-supplier",
+    "modified": "2026-05-13 09:51:08.871858",
+    "estimated_receipt": "2026-05-18 12:30:00",
+    "shipping_cost": 19.52,
+    "line_total": 158.82,
+    "invoice_total": 178.34,
+    "lines": [
+        {
+            "line": 1,
+            "artist_id": 117,
+            "name": "Mgla",
+            "album_id": 1024,
+            "title": "Groza",
+            "quantity": 10,
+            "confirmed": null,
+            "line_total": 77.22
+        },
+    ]
+}
+"""

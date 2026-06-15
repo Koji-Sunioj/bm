@@ -1,81 +1,74 @@
+from db_functions import cursor, tsql
+from utils import (
+    get_hmac,
+    verify_admin_token,
+    bm_format_photoname,
+    dict_list_to_matrix,
+    save_file,
+    form_songs_to_list,
+    form_po_rows_to_list,
+    search,
+)
+
 import os
 import json
 import requests
-import db_functions
-from utils import *
-from db_functions import cursor
+from typing import Annotated
+from dotenv import dotenv_values
 from datetime import datetime, timezone
 from fastapi.responses import JSONResponse
-from fastapi import APIRouter, Request, Depends, Response
+from fastapi import APIRouter, Request, Depends, Form
 from models import (
     DetailResponse,
-    AdminArtistPatchResponse,
-    AdminAlbumPatchResponse,
     AdminAlbums,
     AdminDispatches,
-    AdminPurchaseOrder,
-    AdminPurchaseOrders,
     AdminDispatchCost,
+    AdminPurchaseOrders,
+    AdminAlbumPatchResponse,
+    AdminArtistPatchResponse,
+    AdminPurchaseOrderResponse,
     AdminPurchaseOrderPatchResponse,
 )
 
 admin = APIRouter(prefix="/admin", dependencies=[Depends(verify_admin_token)])
 
 
-@admin.delete("/albums/{album_id}", response_model=DetailResponse)
-@db_functions.tsql
-async def delete_album(album_id: int) -> DetailResponse:
-    cursor.callproc("get_album", (album_id,))
-    album = cursor.fetchone()["album"]
-    del_command = "delete from albums where album_id = %s"
-    cursor.execute(del_command, (album_id,))
-
-    if cursor.rowcount > 0:
-        os.remove("/var/www/bm/common/%s" % album["photo"])
-        detail = "album %s was deleted" % album["title"]
-    else:
-        detail = "there was nothing to delete"
-
-    return JSONResponse({"detail": detail}, 200)
-
-
 @admin.post("/artists", response_model=AdminArtistPatchResponse)
 @admin.patch("/artists/{artist_id}", response_model=AdminArtistPatchResponse)
-@db_functions.tsql
-async def create_artist(request: Request, artist_id=None) -> AdminArtistPatchResponse:
-    form = await request.form()
-
+@tsql
+async def create_artist(request: Request, bio: Annotated[str, Form()], name: Annotated[str, Form()], artist_id:int=None) -> AdminArtistPatchResponse:
     check_query = "select artist_id from artists where lower(name) = lower(%s);"
-    cursor.execute(check_query, (form["name"],))
+    cursor.execute(check_query, (name,))
     existing_artist = cursor.fetchone()
 
     new_artist_exists = request.method == "POST" and existing_artist != None
     edit_artist_exists = (
         request.method == "PATCH"
         and existing_artist != None
-        and str(existing_artist["artist_id"]) != artist_id
+        and existing_artist["artist_id"] != artist_id
     )
 
     if any([new_artist_exists, edit_artist_exists]):
         return JSONResponse({"detail": "that artist exists"}, 409)
 
-    response = {}
+    detail = None
 
     match request.method:
 
         case "POST":
-            cursor.callproc("create_artist", (form["name"], form["bio"]))
+            cursor.callproc("create_artist", (name, bio))
             new_artist = cursor.fetchone()
-            response["detail"] = "artist %s created" % new_artist["name"]
-            response["artist_id"] = new_artist["artist_id"]
+
+            detail = "artist %s created" % new_artist["name"]
+            artist_id = new_artist["artist_id"]
 
         case "PATCH":
             cursor.callproc("get_artist", (artist_id, "user"))
             artist = cursor.fetchone()["artist"]
 
             fields_to_change = {
-                field: form[field] if str(artist[field]) != form[field] else None
-                for field in ["name", "bio"]
+                item[0]: item[1] if artist[item[0]] != item[1] else None
+                for item in {"name":name, "bio":bio}.items()
             }
 
             if any(fields_to_change.values()):
@@ -83,15 +76,15 @@ async def create_artist(request: Request, artist_id=None) -> AdminArtistPatchRes
                     "update_artist", (artist_id, *fields_to_change.values())
                 )
                 updated = cursor.fetchone()
-                response["detail"] = "artist %s updated" % updated["name"]
-                response["artist_id"] = updated["artist_id"]
+
+                detail = "artist %s updated" % updated["name"]
 
             if fields_to_change["name"] != None and len(artist["albums"]) > 0:
                 new_files = [
                     {
                         "album_id": album["album_id"],
                         "new_file": bm_format_photoname(
-                            form["name"], album["title"], album["photo"]
+                            name, album["title"], album["photo"]
                         ),
                         "old_file": album["photo"],
                     }
@@ -106,7 +99,16 @@ async def create_artist(request: Request, artist_id=None) -> AdminArtistPatchRes
                     old_file = "/var/www/bm/common/%s" % file["old_file"]
                     os.rename(old_file, new_file)
 
-    return response
+    return {"artist_id": artist_id, "detail": detail}
+
+
+@admin.delete("/artists/{artist_id}", response_model=DetailResponse)
+@tsql
+async def delete_artist(artist_id:int) -> DetailResponse:
+    delete_command = "delete from artists where artist_id = %s returning name;"
+    cursor.execute(delete_command, (artist_id,))
+    name = cursor.fetchone()["name"]
+    return {"detail": "artist %s deleted" % name}
 
 
 @admin.post(
@@ -117,7 +119,7 @@ async def create_artist(request: Request, artist_id=None) -> AdminArtistPatchRes
     response_model=AdminAlbumPatchResponse,
     response_model_exclude_none=True,
 )
-@db_functions.tsql
+@tsql
 async def manage_album(
     request: Request, album_id: int = None
 ) -> AdminAlbumPatchResponse:
@@ -132,7 +134,7 @@ async def manage_album(
             [
                 album
                 for album in artist["albums"]
-                if str(album["album_id"]) != album_id
+                if album["album_id"] != album_id
                 and album["title"].lower() == form["title"].lower()
             ]
         )
@@ -150,7 +152,7 @@ async def manage_album(
         artist["name"], form["title"], form["photo"].filename
     )
 
-    response = {}
+    detail = None
 
     match request.method:
 
@@ -172,8 +174,8 @@ async def manage_album(
             inserted_matrix = dict_list_to_matrix(new_songs)
             cursor.callproc("insert_songs", (*inserted_matrix,))
 
-            response["album_id"] = inserted["album_id"]
-            response["detail"] = "album %s created" % inserted["title"]
+            album_id = inserted["album_id"]
+            detail = "album %s created" % inserted["title"]
 
         case "PATCH":
             cursor.callproc("get_album", (form["album_id"],))
@@ -261,25 +263,42 @@ async def manage_album(
             ):
                 cursor.callproc("update_modified", (album_id,))
                 updated_album = cursor.fetchone()
-                response["detail"] = "album %s updated" % updated_album["title"]
-                response["album_id"] = updated_album["album_id"]
+
+                detail = "album %s updated" % updated_album["title"]
 
             else:
-                response["detail"] = "there was nothing to update"
+                detail = "there was nothing to update"
 
-    return response
+    return {"album_id": album_id, "detail": detail}
+
+
+@admin.delete("/albums/{album_id}", response_model=DetailResponse)
+@tsql
+async def delete_album(album_id: int) -> DetailResponse:
+    cursor.callproc("get_album", (album_id,))
+    album = cursor.fetchone()["album"]
+    del_command = "delete from albums where album_id = %s"
+    cursor.execute(del_command, (album_id,))
+
+    if cursor.rowcount > 0:
+        os.remove("/var/www/bm/common/%s" % album["photo"])
+        detail = "album %s was deleted" % album["title"]
+    else:
+        detail = "there was nothing to delete"
+
+    return {"detail": detail}
 
 
 @admin.get("/artists", response_model=AdminAlbums, response_model_exclude_none=True)
-@db_functions.tsql
+@tsql
 async def admin_get_artists(
     page: int = None, sort: str = None, direction: str = None, query: str = None
 ) -> AdminAlbums:
-    response = {}
+    artists, pages = None, None
 
     if all([page, sort, direction]):
         cursor.callproc("get_artists", (page, sort, direction, query))
-        response["artists"] = cursor.fetchone()["artists"]
+        artists = cursor.fetchone()["artists"]
 
         cursor.callproc(
             "get_pages",
@@ -288,16 +307,17 @@ async def admin_get_artists(
                 query,
             ),
         )
-        response["pages"] = cursor.fetchone()["pages"]
+        pages = cursor.fetchone()["pages"]
 
     else:
         cursor.callproc("get_artists")
-        response["artists"] = cursor.fetchone()["artists"]
-    return response
+        artists = cursor.fetchone()["artists"]
+
+    return {"artists": artists, "pages": pages}
 
 
 @admin.get("/dispatches", response_model=AdminDispatches)
-@db_functions.tsql
+@tsql
 async def get_dispatches() -> AdminDispatches:
     query = "select dispatches.purchase_order,dispatches.dispatch_id,dispatches.status,dispatches.address,\
         purchase_orders.estimated_receipt::varchar,purchase_orders.shipping_cost::float from dispatches join\
@@ -308,68 +328,9 @@ async def get_dispatches() -> AdminDispatches:
     return {"dispatches": dispatches}
 
 
-@admin.get(
-    "/purchase-orders",
-    response_model=AdminPurchaseOrders,
-    response_model_exclude_none=True,
-)
-@db_functions.tsql
-async def get_purchase_orders() -> AdminPurchaseOrders:
-    query = "select purchase_orders.purchase_order,modified::varchar,status,count(distinct(album_id)) \
-        as albums from purchase_orders join purchase_order_lines on purchase_orders.purchase_order \
-        = purchase_order_lines.purchase_order group by purchase_orders.purchase_order,status,modified order by modified desc;"
-
-    cursor.execute(query)
-    purchase_orders = cursor.fetchall()
-    return {"purchase_orders": purchase_orders}
-
-
-@admin.get("/purchase-orders/{purchase_order}", response_model=AdminPurchaseOrder)
-@db_functions.tsql
-async def get_purchase_order(purchase_order) -> AdminPurchaseOrder:
-    query = "select purchase_orders.purchase_order, purchase_orders.status,purchase_orders.modified::varchar, \
-		purchase_orders.estimated_receipt::varchar,purchase_orders.shipping_cost::float, \
-        sum(purchase_order_lines.line_total)::float as line_total,\
-        (sum(purchase_order_lines.line_total) + purchase_orders.shipping_cost)::float as invoice_total,\
-        json_agg(json_build_object('line',purchase_order_lines.line,'artist_id',artists.artist_id, \
-        'name',artists.name,'album_id',purchase_order_lines.album_id,'title',albums.title, \
-        'quantity',purchase_order_lines.quantity,'confirmed',purchase_order_lines.confirmed_quantity, \
-        'line_total',purchase_order_lines.line_total) order by purchase_order_lines.line) as lines \
-        from purchase_orders join purchase_order_lines on \
-        purchase_orders.purchase_order = purchase_order_lines.purchase_order \
-        join albums on albums.album_id = purchase_order_lines.album_id \
-        join artists on artists.artist_id = albums.artist_id where purchase_orders.purchase_order = %s \
-        group by purchase_orders.purchase_order;"
-
-    cursor.execute(query, (purchase_order,))
-    purchase_order = cursor.fetchone()
-    return purchase_order
-
-
-@admin.get("/dispatch-cost", response_model=AdminDispatchCost)
-async def get_dispatch_costs(items: str = None) -> AdminDispatchCost:
-    params = {
-        "client_id": (
-            "bm-prod" if os.path.exists("/var/lib/cloud/instance") else "bm-dev"
-        ),
-        "items": items,
-    }
-
-    lambda_response = requests.get(
-        dotenv_values(".env")["LAMBDA_SERVER"] + "/client/dispatch-cost",
-        headers={"Authorization": get_hmac(params)},
-        params=params,
-    )
-
-    if lambda_response.status_code != 200:
-        raise Exception("there was an error in the request")
-
-    return lambda_response.json()
-
-
 @admin.patch("/dispatches/{dispatch_id}", response_model=DetailResponse)
-@db_functions.tsql
-async def send_dispatch_update(request: Request, dispatch_id):
+@tsql
+async def send_dispatch_update(request: Request, dispatch_id:str) -> DetailResponse:
 
     check_query = "select status from dispatches where dispatch_id = %s;"
     cursor.execute(check_query, (dispatch_id,))
@@ -421,15 +382,55 @@ async def send_dispatch_update(request: Request, dispatch_id):
     return {"detail": detail}
 
 
+@admin.get(
+    "/purchase-orders",
+    response_model=AdminPurchaseOrders,
+    response_model_exclude_none=True,
+)
+@tsql
+async def get_purchase_orders() -> AdminPurchaseOrders:
+    query = "select purchase_orders.purchase_order,modified::varchar,status,count(distinct(album_id)) \
+        as albums from purchase_orders join purchase_order_lines on purchase_orders.purchase_order \
+        = purchase_order_lines.purchase_order group by purchase_orders.purchase_order,status,modified order by modified desc;"
+
+    cursor.execute(query)
+    purchase_orders = cursor.fetchall()
+    return {"purchase_orders": purchase_orders}
+
+
+@admin.get(
+    "/purchase-orders/{purchase_order_id}", response_model=AdminPurchaseOrderResponse
+)
+@tsql
+async def get_purchase_order(purchase_order_id: int) -> AdminPurchaseOrderResponse:
+    query = "select purchase_orders.purchase_order, purchase_orders.status,purchase_orders.modified::varchar, \
+		purchase_orders.estimated_receipt::varchar,purchase_orders.shipping_cost::float, \
+        sum(purchase_order_lines.line_total)::float as line_total,\
+        (sum(purchase_order_lines.line_total) + purchase_orders.shipping_cost)::float as invoice_total,\
+        json_agg(json_build_object('line',purchase_order_lines.line,'artist_id',artists.artist_id, \
+        'name',artists.name,'album_id',purchase_order_lines.album_id,'title',albums.title, \
+        'quantity',purchase_order_lines.quantity,'confirmed',purchase_order_lines.confirmed_quantity, \
+        'line_total',purchase_order_lines.line_total) order by purchase_order_lines.line) as lines \
+        from purchase_orders join purchase_order_lines on \
+        purchase_orders.purchase_order = purchase_order_lines.purchase_order \
+        join albums on albums.album_id = purchase_order_lines.album_id \
+        join artists on artists.artist_id = albums.artist_id where purchase_orders.purchase_order = %s \
+        group by purchase_orders.purchase_order;"
+
+    cursor.execute(query, (purchase_order_id,))
+    purchase_order = cursor.fetchone()
+    return {"purchase_order": purchase_order}
+
+
 @admin.post("/purchase-orders", response_model=AdminPurchaseOrderPatchResponse)
 @admin.patch(
     "/purchase-orders/{purchase_order}", response_model=AdminPurchaseOrderPatchResponse
 )
-@db_functions.tsql
+@tsql
 async def send_purchase_order(
     request: Request, purchase_order=None
 ) -> AdminPurchaseOrderPatchResponse:
-    form = await request.form()
+    form = await request.form()  
     po_rows = form_po_rows_to_list(form)
 
     inserted = None
@@ -620,10 +621,22 @@ async def send_purchase_order(
             raise Exception(detail)
 
 
-@admin.delete("/artists/{artist_id}", response_model=DetailResponse)
-@db_functions.tsql
-async def delete_artist(artist_id) -> DetailResponse:
-    delete_command = "delete from artists where artist_id = %s returning name;"
-    cursor.execute(delete_command, (artist_id,))
-    name = cursor.fetchone()["name"]
-    return {"detail": "artist %s deleted" % name}
+@admin.get("/dispatch-cost", response_model=AdminDispatchCost)
+async def get_dispatch_costs(items: str = None) -> AdminDispatchCost:
+    params = {
+        "client_id": (
+            "bm-prod" if os.path.exists("/var/lib/cloud/instance") else "bm-dev"
+        ),
+        "items": items,
+    }
+
+    lambda_response = requests.get(
+        dotenv_values(".env")["LAMBDA_SERVER"] + "/client/dispatch-cost",
+        headers={"Authorization": get_hmac(params)},
+        params=params,
+    )
+
+    if lambda_response.status_code != 200:
+        raise Exception("there was an error in the request")
+
+    return lambda_response.json()

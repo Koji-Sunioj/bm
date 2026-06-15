@@ -1,6 +1,4 @@
-import db_functions
-from models import DetailResponse
-from db_functions import cursor
+from db_functions import cursor, tsql
 from utils import decode_role, decode_token, encode_role, AuthorizationError
 
 from jose import jwt
@@ -8,6 +6,7 @@ from dotenv import dotenv_values
 from passlib.context import CryptContext
 from datetime import timedelta, datetime, timezone
 from fastapi import APIRouter, Request, Response
+from models import UserAuth, DetailResponse
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 fe_secret = dotenv_values(".env")["FE_SECRET"]
@@ -37,27 +36,26 @@ async def check_token(request: Request, response: Response) -> Response:
 
 
 @auth.post("/sign-in", response_model=DetailResponse)
-@db_functions.tsql
-async def sign_in(request: Request, response: Response) -> DetailResponse:
-    content = await request.json()
-    cursor.callproc("get_user", (content["username"], "password"))
+@tsql
+async def sign_in(response: Response, user: UserAuth) -> DetailResponse:
+    cursor.callproc("get_user", (user.username, "password"))
 
     try:
-        user = cursor.fetchone()["bm_user"]
-        pwd_context.verify(content["password"], user["password"])
+        db_user = cursor.fetchone()["bm_user"]
+        pwd_context.verify(user.password, db_user["password"])
     except:
         raise Exception("cannot sign in")
 
     now = datetime.now(timezone.utc)
     expires = now + timedelta(minutes=180)
     jwt_payload = {
-        "sub": user["username"],
+        "sub": db_user["username"],
         "iat": now,
         "exp": expires,
-        "created": str(user["created"]),
+        "created": str(db_user["created"]),
     }
-    if user["role"] == "admin":
-        jwt_payload["role"] = encode_role(user["role"])
+    if db_user["role"] == "admin":
+        jwt_payload["role"] = encode_role(db_user["role"])
     token = jwt.encode(jwt_payload, fe_secret)
 
     token_string = "token=%s; Path=/; SameSite=Lax" % token
@@ -67,17 +65,16 @@ async def sign_in(request: Request, response: Response) -> DetailResponse:
 
 
 @auth.post("/register", response_model=DetailResponse)
-@db_functions.tsql
-async def register(request: Request) -> DetailResponse:
-    content = await request.json()
+@tsql
+async def register(user: UserAuth) -> DetailResponse:
     guest_list = dotenv_values(".env")["GUEST_LIST"].split(",")
     guest_dict = {key.split(":")[0]: key.split(":")[1] for key in guest_list}
-    if content["username"] not in guest_dict:
+    if user.username not in guest_dict:
         raise AuthorizationError("client not on guest list")
-    role = guest_dict[content["username"]]
+    role = guest_dict[user.username]
     cursor.callproc(
         "create_user",
-        (content["username"], pwd_context.hash(content["password"]), role),
+        (user.username, pwd_context.hash(user.password), role),
     )
     created = cursor.rowcount > 0
 

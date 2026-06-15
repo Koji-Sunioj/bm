@@ -605,7 +605,8 @@ const renderPurchaseForm = async () => {
     switch (action) {
         case "view":
             h1.innerHTML = `View purchase order`;
-            const {
+
+            const{ purchase_order: {
                 purchase_order,
                 modified,
                 status,
@@ -614,9 +615,11 @@ const renderPurchaseForm = async () => {
                 line_total,
                 estimated_receipt,
                 shipping_cost,
-            } = await fetch(
+            }} = await fetch(
                 `/api/admin/purchase-orders/${url.get("purchase_order")}`,
             ).then((response) => response.json());
+
+
             addable = status === "confirmed" ? false : true;
             document.getElementById("po-details").style.display = "block";
 
@@ -1219,6 +1222,9 @@ const auth = async (event) => {
     const response = await fetch(url, {
         body: JSON.stringify({ username: username, password: password }),
         method: "POST",
+        headers: {
+            "Content-type": "application/json"
+          },
     });
 
     const { status } = response;

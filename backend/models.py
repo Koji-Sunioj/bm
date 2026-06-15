@@ -1,6 +1,18 @@
-import pydantic
-from typing import Dict, Optional, List
-from pydantic import BaseModel, ConfigDict, create_model
+from typing import List
+from pydantic import BaseModel
+
+
+class UserAuth(BaseModel):
+    username: str
+    password: str
+
+
+class JWT(BaseModel):
+    sub: str
+    iat: int
+    exp: int
+    created: str
+    role: str
 
 
 class User(BaseModel):
@@ -30,9 +42,9 @@ class Album(BaseModel):
     photo: str
     stock: int
     price: float
-    modified: str | None = None    
+    modified: str | None = None
     songs: List[Song] | None = None
-    cart: int | None = None 
+    cart: int | None = None
 
 
 class AlbumsResponse(BaseModel):
@@ -43,6 +55,7 @@ class AlbumsResponse(BaseModel):
 class AlbumResponse(BaseModel):
     album: Album
 
+
 class ArtistForAdmin(BaseModel):
     artist_id: int
     name: str
@@ -50,13 +63,16 @@ class ArtistForAdmin(BaseModel):
     modified: str | None = None
     albums: int | None = None
 
+
 class Artist(BaseModel):
     name: str
     bio: str
     albums: List[Album]
 
+
 class ArtistResponse(BaseModel):
     artist: Artist | ArtistForAdmin
+
 
 class CartItem(BaseModel):
     artist_id: int
@@ -67,9 +83,11 @@ class CartItem(BaseModel):
     quantity: int
     price: float
 
+
 class Cart(BaseModel):
     balance: float | None = None
-    albums:  List[CartItem] | None = None
+    albums: List[CartItem] | None = None
+
 
 class Order(BaseModel):
     order_id: int
@@ -77,24 +95,30 @@ class Order(BaseModel):
     balance: float
     albums: List[CartItem]
 
+
 class OrderResponse(BaseModel):
     cart: Cart
     orders: List[Order]
 
+
 class DetailResponse(BaseModel):
     detail: str
+
 
 class AddToCartResponse(BaseModel):
     remaining: int
     cart: int
 
+
 class AdminArtistPatchResponse(BaseModel):
     detail: str
-    artist_id: int | None = None 
+    artist_id: int | None = None
+
 
 class AdminAlbumPatchResponse(BaseModel):
     detail: str
-    album_id: int | None = None 
+    album_id: int | None = None
+
 
 class AdminPurchaseOrderPatchResponse(BaseModel):
     detail: str
@@ -105,6 +129,7 @@ class AdminAlbums(BaseModel):
     artists: List[ArtistForAdmin]
     pages: int | None = None
 
+
 class AdminDispatch(BaseModel):
     purchase_order: int
     dispatch_id: str
@@ -113,8 +138,10 @@ class AdminDispatch(BaseModel):
     estimated_receipt: str
     shipping_cost: float
 
+
 class AdminDispatches(BaseModel):
     dispatches: List[AdminDispatch]
+
 
 class AdminPurchaseOrderLine(BaseModel):
     line: int
@@ -133,13 +160,19 @@ class AdminPurchaseOrder(BaseModel):
     status: str
     albums: int | None = None
     lines: List[AdminPurchaseOrderLine] | None = None
-    estimated_receipt: str | None = None 
-    shipping_cost: float | None = None 
+    estimated_receipt: str | None = None
+    shipping_cost: float | None = None
     line_total: float | None = None
     invoice_total: float | None = None
 
+
+class AdminPurchaseOrderResponse(BaseModel):
+    purchase_order: AdminPurchaseOrder
+
+
 class AdminPurchaseOrders(BaseModel):
     purchase_orders: List[AdminPurchaseOrder]
+
 
 class AdminDispatchCost(BaseModel):
     freight_cost: float
@@ -147,26 +180,29 @@ class AdminDispatchCost(BaseModel):
     weight_grams: int
 
 
-"""
-{
-    "purchase_order": 85,
-    "status": "pending-supplier",
-    "modified": "2026-05-13 09:51:08.871858",
-    "estimated_receipt": "2026-05-18 12:30:00",
-    "shipping_cost": 19.52,
-    "line_total": 158.82,
-    "invoice_total": 178.34,
-    "lines": [
-        {
-            "line": 1,
-            "artist_id": 117,
-            "name": "Mgla",
-            "album_id": 1024,
-            "title": "Groza",
-            "quantity": 10,
-            "confirmed": null,
-            "line_total": 77.22
-        },
-    ]
-}
-"""
+class MerchantPurchaseOrderLine(BaseModel):
+    line: int
+    confirmed: int
+    album_id: int
+
+
+class MerchantPurchaseOrder(BaseModel):
+    purchase_order_id: int
+    client_id: str
+    lines: List[MerchantPurchaseOrderLine]
+    status: str
+    modified: str
+
+
+class MerchantDispatchNote(BaseModel):
+    dispatch_id: str
+    purchase_order: int
+    status: str
+    address: str
+    client_id: str
+    estimated_delivery: str
+
+
+class MerchantDispatchUpdate(BaseModel):
+    status: str
+    estimated_delivery: str

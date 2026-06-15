@@ -8,6 +8,9 @@ from jose import jwt
 from dotenv import dotenv_values
 from cryptography.fernet import Fernet
 from fastapi import Request, HTTPException
+from models import Album, JWT
+from starlette.datastructures import FormData
+
 
 fe_secret = dotenv_values(".env")["FE_SECRET"]
 be_secret = dotenv_values(".env")["BE_SECRET"]
@@ -17,7 +20,7 @@ class AuthorizationError(Exception):
     pass
 
 
-def check_hmac(payload, client_hmac):
+def check_hmac(payload:dict, client_hmac:str) -> None:
     secret_key = dotenv_values(".env")["LAMBDA_CREDS"].encode()
     correct_hmac = hmac.digest(
         secret_key, payload.encode(), digest=hashlib.sha256).hex()
@@ -25,12 +28,12 @@ def check_hmac(payload, client_hmac):
         raise Exception("invalid credentials")
 
 
-def get_hmac(payload):
+def get_hmac(payload:dict) -> bytes:
     secret_key = dotenv_values(".env")["LAMBDA_CREDS"].encode()
     return hmac.digest(secret_key, str(payload).encode(), digest=hashlib.sha256).hex()
 
 
-def parse_samples(album):
+def parse_samples(album:Album) -> Album:
     try:
         deezer_albums = "https://api.deezer.com/search/album?q=%s" % album["title"]
         response = requests.get(deezer_albums)
@@ -54,29 +57,29 @@ def parse_samples(album):
                 if sample_track["track_position"] == bm_track["track"]:
                     bm_track["preview"] = sample_track["preview"]
         return album
-    except Exception as error:
+    except:
         return album
 
-def bm_format_photoname(name, title, filename):
+def bm_format_photoname(name:str, title:str, filename:str) -> str:
     file_params = "%s-%s" % (name.lower(), title.lower())
     new_filename = re.sub("[^a-z0-9\s\-]", "", file_params).replace(" ", "-")
     extension = filename.split(".")[-1]
     return "%s.%s" % (new_filename, extension)
 
 
-def save_file(filename, content):
+def save_file(filename:str, content:bytes) -> None:
     new_photo = open("/var/www/bm/common/%s" % filename, "wb")
     new_photo.write(content)
     new_photo.close()
 
 
-def dict_list_to_matrix(dict_list):
+def dict_list_to_matrix(dict_list:list[dict]) -> list[list]:
     init_matrix = [list(array.values()) for array in dict_list]
     reshaped = [list(n) for n in zip(*init_matrix)]
     return reshaped
 
 
-def form_po_rows_to_list(form):
+def form_po_rows_to_list(form:FormData) -> list[dict]:
     po_row_pattern = r"(?!artist_id|name|album_id|title|quantity|line_total)(?!_)\d"
     indexes = [int(re.search(po_row_pattern, key).group())
                for key in form.keys() if re.search(po_row_pattern, key)]
@@ -99,7 +102,7 @@ def form_po_rows_to_list(form):
     return rows
 
 
-def form_songs_to_list(form, new_album_id=None):
+def form_songs_to_list(form:FormData, new_album_id=None) -> list[dict]:
     song_pattern = r"^(?:track|duration|song)_[0-9]{1,2}$"
     indexes = [int(key.split("_")[1])
                for key in form.keys() if re.search(song_pattern, key)]
@@ -122,7 +125,7 @@ def form_songs_to_list(form, new_album_id=None):
     return songs
 
 
-def search(dicts, key, value, return_value=None):
+def search(dicts:list[dict], key:str, value:str|int|float, return_value:str|None=None) -> dict|int|float|str:
     try:
         if return_value != None:
             return next(n for n in dicts if n[key] == value)[return_value]
@@ -132,7 +135,7 @@ def search(dicts, key, value, return_value=None):
         return None
 
 
-def encode_role(role):
+def encode_role(role:str) -> str:
     key = base64.urlsafe_b64encode(be_secret.encode())
     fernet = Fernet(key)
     key_role = fernet.encrypt(role.encode())
@@ -140,7 +143,7 @@ def encode_role(role):
     return b64_encoded_role
 
 
-def decode_role(jwt_role):
+def decode_role(jwt_role:str) -> str:
     key = base64.urlsafe_b64encode(be_secret.encode())
     fernet = Fernet(key)
     role_b64 = jwt_role.encode(encoding="utf-8")
@@ -150,25 +153,25 @@ def decode_role(jwt_role):
     return role
 
 
-async def decode_token(request: Request):
+async def decode_token(request: Request) -> JWT:
     headers = request.headers
     token_pattern = re.search(r"token=(.+?)(?=;|$)", headers["cookie"])
     jwt_payload = jwt.decode(token_pattern.group(1), key=fe_secret)
     return jwt_payload
 
 
-async def verify_admin_token(request: Request):
+async def verify_admin_token(request: Request) -> None:
     try:
         jwt_payload = await decode_token(request)
         request.state.role = decode_role(jwt_payload["role"])
         request.state.sub = jwt_payload["sub"]
-    except Exception as error:
+    except:
         raise HTTPException(status_code=401, detail="invalid credentials")
 
 
-async def verify_token(request: Request):
+async def verify_token(request: Request) -> None:
     try:
         jwt_payload = await decode_token(request)
         request.state.sub = jwt_payload["sub"]
-    except Exception as error:
+    except:
         raise HTTPException(status_code=401, detail="invalid credentials")

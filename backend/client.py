@@ -1,5 +1,7 @@
-import db_functions
+from db_functions import cursor, tsql
 from utils import parse_samples, verify_token, decode_token
+
+from fastapi import APIRouter, Request, Depends
 from models import (
     UserResponse,
     ArtistResponse,
@@ -9,14 +11,12 @@ from models import (
     DetailResponse,
     AddToCartResponse,
 )
-from db_functions import cursor
-from fastapi import APIRouter, Request, Depends
 
 client = APIRouter(prefix="/client")
 
 
 @client.get("/user", dependencies=[Depends(verify_token)], response_model=UserResponse)
-@db_functions.tsql
+@tsql
 async def get_user(request: Request) -> UserResponse:
     cursor.callproc("get_user", (request.state.sub, "cart"))
     user = cursor.fetchone()["bm_user"]
@@ -24,7 +24,7 @@ async def get_user(request: Request) -> UserResponse:
 
 
 @client.get("/artists/{artist_id}", response_model=ArtistResponse)
-@db_functions.tsql
+@tsql
 async def get_artist(artist_id: int, view: str) -> ArtistResponse:
     cursor.callproc("get_artist", (artist_id, view))
     artist = cursor.fetchone()["artist"]
@@ -32,9 +32,8 @@ async def get_artist(artist_id: int, view: str) -> ArtistResponse:
 
 
 @client.get("/albums", response_model=AlbumsResponse, response_model_exclude_none=True)
-@db_functions.tsql
+@tsql
 async def get_albums(
-    request: Request,
     page: int = 1,
     sort: str = "name",
     direction: str = "ascending",
@@ -57,7 +56,7 @@ async def get_albums(
 @client.get(
     "/albums/{album_id}", response_model=AlbumResponse, response_model_exclude_none=True
 )
-@db_functions.tsql
+@tsql
 async def get_album(
     album_id, request: Request, cart: str = None, previews: str = None
 ) -> AlbumResponse:
@@ -83,7 +82,7 @@ async def get_album(
 @client.get(
     "/orders", dependencies=[Depends(verify_token)], response_model=OrderResponse
 )
-@db_functions.tsql
+@tsql
 async def get_orders_cart(request: Request) -> OrderResponse:
     cursor.callproc("get_orders_and_cart", (request.state.sub,))
     orders_cart = cursor.fetchone()
@@ -95,7 +94,7 @@ async def get_orders_cart(request: Request) -> OrderResponse:
     dependencies=[Depends(verify_token)],
     response_model=DetailResponse,
 )
-@db_functions.tsql
+@tsql
 async def checkout_cart_items(request: Request) -> DetailResponse:
     cursor.callproc("get_user", (request.state.sub, "checkout"))
     data = cursor.fetchone()["bm_user"]
@@ -123,7 +122,7 @@ async def checkout_cart_items(request: Request) -> DetailResponse:
     dependencies=[Depends(verify_token)],
     response_model=AddToCartResponse,
 )
-@db_functions.tsql
+@tsql
 async def add_cart_item(request: Request, album_id: str) -> AddToCartResponse:
     cursor.callproc("get_user", (request["state"]["sub"], "owner"))
     user_id = cursor.fetchone()["bm_user"]["user_id"]
@@ -146,7 +145,7 @@ async def add_cart_item(request: Request, album_id: str) -> AddToCartResponse:
     dependencies=[Depends(verify_token)],
     response_model=AddToCartResponse,
 )
-@db_functions.tsql
+@tsql
 async def del_cart_item(request: Request, album_id: int) -> AddToCartResponse:
     cursor.callproc("get_user", (request["state"]["sub"], "owner"))
     user_id = cursor.fetchone()["bm_user"]["user_id"]

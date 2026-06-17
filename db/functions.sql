@@ -1,3 +1,73 @@
+create function get_dispatches(out purchase_order int,out dispatch_id varchar,out status varchar,
+	out address varchar, out estimated_receipt varchar,out shipping_cost numeric)
+returns setof record as 
+$$
+	select dispatches.purchase_order,dispatches.dispatch_id,dispatches.status,dispatches.address,
+	purchase_orders.estimated_receipt::varchar,purchase_orders.shipping_cost::float from dispatches join
+	purchase_orders on purchase_orders.purchase_order = dispatches.purchase_order order by estimated_receipt desc;
+$$
+language sql;
+
+create function create_dispatch(in dispatch_id uuid, in purchase_order int,in status varchar,in address varchar)
+returns void as
+$$
+	insert into dispatches (dispatch_id,purchase_order,status,address) values ($1,$2,$3,$4);
+$$
+language sql;
+
+create function update_dispatch_status(in dispatch_id uuid, in status varchar) 
+returns void as
+$$
+	update dispatches set status = $2 where dispatch_id = $1
+$$
+language sql;
+
+create function update_stock(in dispatch_id uuid) 
+returns void as
+$$
+	update albums
+	set stock = stock + po.confirmed_quantity from
+	(select album_id,confirmed_quantity from purchase_orders 
+	join dispatches on 
+	dispatches.purchase_order = purchase_orders.purchase_order
+	join purchase_order_lines on 
+	purchase_order_lines.purchase_order = dispatches.purchase_order
+	where dispatch_id = $1) 
+	as po
+	where po.album_id = albums.album_id;
+$$
+language sql;
+
+create function get_pending_orders_count(out count int) 
+returns int as
+$$
+	select count(purchase_order) from purchase_orders where status in ('pending-supplier','pending-buyer');
+$$
+language sql;
+
+create function create_purchase_order(in shipping_cost numeric, in estimated_receipt timestamp,
+         out purchase_order int,out modified timestamp,out status varchar)
+returns setof record as
+$$
+         insert into purchase_orders (status,shipping_cost,estimated_receipt) values ('pending-supplier',$1,$2) returning purchase_order,modified,status;;
+$$
+language sql;
+
+create function create_purchase_order_lines(in line int[],in album_id int[],
+	in quantity int[],in line_total numeric[],in purchase_order int[])
+returns void as
+$$
+	insert into purchase_order_lines (line,album_id,quantity,line_total,purchase_order)
+	select  unnest($1), unnest($2),unnest($3),unnest($4),unnest($5);
+$$ language sql;
+
+create function get_dispatch_status(in dispatch_id uuid, out status varchar)
+returns varchar as
+$$
+	select status from dispatches where dispatch_id = $1
+$$
+language sql;
+
 create function get_album(in album_id int,out album json) 
 returns setof json as 
 $$
@@ -48,6 +118,20 @@ $$
     group by orders.order_id order by orders.order_id asc) orders ) as orders;
 $$ language sql;
 
+
+create function delete_artist(in artist_id int, out name varchar)
+returns varchar as 
+$$
+	delete from artists where artist_id = $1 returning name;
+$$
+language sql;
+
+create function get_artist_by_name(in name, out artist_id int)
+returns int as 
+$$
+	select artists.artist_id from artists where lower(name) = lower($1);
+$$
+language sql;
 
 create function get_artist(in artist_id int,in view varchar,out artist json) returns setof json as
 $$
@@ -134,7 +218,7 @@ $$
 $$ language sql;
 
 
-create or replace function get_artists(in page int default null,in sort varchar default null,in direction varchar default null,in query varchar default null,out artists json)
+create function get_artists(in page int default null,in sort varchar default null,in direction varchar default null,in query varchar default null,out artists json)
 returns setof json as 
 $$
 declare 
@@ -349,5 +433,3 @@ begin
 	execute 'update albums set '||array_to_string(sets, ',')||' where album_id='||$1||';';
 end
 $$ language plpgsql;
-
---hello

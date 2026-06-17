@@ -71,11 +71,8 @@ async def despatch_notification(
     payload = await request.json()
     check_hmac(json.dumps(payload), authorization)
 
-    insert_command = """insert into dispatches (dispatch_id,purchase_order,status,address) values \
-        (%s,%s,%s,%s)"""
-
-    cursor.execute(
-        insert_command,
+    cursor.callproc(
+        "create_dispatch",
         (
             dispatch_note.dispatch_id,
             dispatch_note.purchase_order,

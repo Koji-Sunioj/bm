@@ -36,10 +36,14 @@ admin = APIRouter(prefix="/admin", dependencies=[Depends(verify_admin_token)])
 @admin.post("/artists", response_model=AdminArtistPatchResponse)
 @admin.patch("/artists/{artist_id}", response_model=AdminArtistPatchResponse)
 @tsql
-async def create_artist(request: Request, bio: Annotated[str, Form()], name: Annotated[str, Form()], artist_id:int=None) -> AdminArtistPatchResponse:
-    check_query = "select artist_id from artists where lower(name) = lower(%s);"
-    cursor.execute(check_query, (name,))
-    existing_artist = cursor.fetchone()
+async def create_artist(
+    request: Request,
+    bio: Annotated[str, Form()],
+    name: Annotated[str, Form()],
+    artist_id: int = None,
+) -> AdminArtistPatchResponse:
+    cursor.callproc("get_artist_by_name", (name,))
+    existing_artist = cursor.fetchone()["artist_id"]
 
     new_artist_exists = request.method == "POST" and existing_artist != None
     edit_artist_exists = (
@@ -68,7 +72,7 @@ async def create_artist(request: Request, bio: Annotated[str, Form()], name: Ann
 
             fields_to_change = {
                 item[0]: item[1] if artist[item[0]] != item[1] else None
-                for item in {"name":name, "bio":bio}.items()
+                for item in {"name": name, "bio": bio}.items()
             }
 
             if any(fields_to_change.values()):
@@ -104,9 +108,8 @@ async def create_artist(request: Request, bio: Annotated[str, Form()], name: Ann
 
 @admin.delete("/artists/{artist_id}", response_model=DetailResponse)
 @tsql
-async def delete_artist(artist_id:int) -> DetailResponse:
-    delete_command = "delete from artists where artist_id = %s returning name;"
-    cursor.execute(delete_command, (artist_id,))
+async def delete_artist(artist_id: int) -> DetailResponse:
+    cursor.callproc("delete_artist", (artist_id,))
     name = cursor.fetchone()["name"]
     return {"detail": "artist %s deleted" % name}
 
@@ -319,21 +322,15 @@ async def admin_get_artists(
 @admin.get("/dispatches", response_model=AdminDispatches)
 @tsql
 async def get_dispatches() -> AdminDispatches:
-    query = "select dispatches.purchase_order,dispatches.dispatch_id,dispatches.status,dispatches.address,\
-        purchase_orders.estimated_receipt::varchar,purchase_orders.shipping_cost::float from dispatches join\
-        purchase_orders on purchase_orders.purchase_order = dispatches.purchase_order order by estimated_receipt desc;"
-
-    cursor.execute(query)
+    cursor.callproc("get_dispatches")
     dispatches = cursor.fetchall()
     return {"dispatches": dispatches}
 
 
 @admin.patch("/dispatches/{dispatch_id}", response_model=DetailResponse)
 @tsql
-async def send_dispatch_update(request: Request, dispatch_id:str) -> DetailResponse:
-
-    check_query = "select status from dispatches where dispatch_id = %s;"
-    cursor.execute(check_query, (dispatch_id,))
+async def send_dispatch_update(request: Request, dispatch_id: str) -> DetailResponse:
+    cursor.callproc("get_dispatch_status", (dispatch_id,))
     status = cursor.fetchone()["status"]
 
     if status != "shipped":
@@ -364,20 +361,9 @@ async def send_dispatch_update(request: Request, dispatch_id:str) -> DetailRespo
     if lambda_response.status_code != 200:
         raise Exception(detail)
 
-    update_stock_command = """update albums
-        set stock = stock + something.confirmed_quantity from
-        (select album_id,confirmed_quantity from purchase_orders 
-        join dispatches on 
-        dispatches.purchase_order = purchase_orders.purchase_order
-        join purchase_order_lines on 
-        purchase_order_lines.purchase_order = dispatches.purchase_order
-        where dispatch_id = %s) 
-        as something
-        where something.album_id = albums.album_id;"""
-    cursor.execute(update_stock_command, (dispatch_id,))
+    cursor.callproc("update_stock", (dispatch_id,))
 
-    update_dispatch_command = "update dispatches set status = %s where dispatch_id = %s"
-    cursor.execute(update_dispatch_command, (data["status"], dispatch_id))
+    cursor.callproc("update_dispatch_status", (dispatch_id, data["status"]))
 
     return {"detail": detail}
 
@@ -430,15 +416,14 @@ async def get_purchase_order(purchase_order_id: int) -> AdminPurchaseOrderRespon
 async def send_purchase_order(
     request: Request, purchase_order=None
 ) -> AdminPurchaseOrderPatchResponse:
-    form = await request.form()  
+    form = await request.form()
     po_rows = form_po_rows_to_list(form)
 
     inserted = None
 
     match request.method:
         case "POST":
-            check_query = "select count(purchase_order) from purchase_orders where status in ('pending-supplier','pending-buyer');"
-            cursor.execute(check_query)
+            cursor.callproc("get_pending_orders_count")
             others_orders = cursor.fetchone()["count"]
 
             if others_orders > 0:
@@ -446,30 +431,23 @@ async def send_purchase_order(
                     {"detail": "no more than one pending purchase order can exist"}
                 )
 
-            insert_command = "insert into purchase_orders (status,shipping_cost,estimated_receipt) values ('pending-supplier',%s,%s) returning purchase_order,modified,status;"
-
-            cursor.execute(
-                insert_command, (form["dispatch_cost"], form["estimated_delivery"])
+            cursor.callproc(
+                "create_purchase_order",
+                (form["dispatch_cost"], form["estimated_delivery"]),
             )
             inserted = cursor.fetchone()
 
-            inserts = "insert into purchase_order_lines (line,purchase_order,album_id,quantity,line_total) values "
+            po_rows_filtered = [row.copy() for row in po_rows]
 
-            for n, line in enumerate(po_rows):
-                insert = "(%s,%s,%s,%s,%s)" % (
-                    line["line"],
-                    inserted["purchase_order"],
-                    line["album_id"],
-                    line["quantity"],
-                    line["line_total"],
-                )
-                inserts += insert
-                if n == len(po_rows) - 1:
-                    inserts += ";"
-                else:
-                    inserts += ",\n"
+            for row in po_rows_filtered:
+                del row["artist"]
+                del row["album"]
+                del row["artist_id"]
+                row["purchase_order"] = inserted["purchase_order"]
 
-            cursor.execute(inserts)
+            po_lines_matrix = dict_list_to_matrix(po_rows_filtered)
+
+            cursor.callproc("create_purchase_order_lines", (*po_lines_matrix,))
 
         case "PATCH":
             keys = ["line", "album_id", "quantity", "line_total"]
@@ -588,7 +566,6 @@ async def send_purchase_order(
                 inserted = cursor.fetchone()
             else:
                 return JSONResponse({"detail": "no changes made"})
-
     payload = json.dumps(
         {
             "client_id": (
@@ -602,6 +579,8 @@ async def send_purchase_order(
             "dispatch_cost": float(form["dispatch_cost"]),
         }
     )
+
+    print(payload)
 
     lambda_response = requests.put(
         dotenv_values(".env")["LAMBDA_SERVER"] + "/client/purchase-orders",

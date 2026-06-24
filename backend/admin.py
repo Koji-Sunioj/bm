@@ -280,8 +280,8 @@ async def manage_album(
 async def delete_album(album_id: int) -> DetailResponse:
     cursor.callproc("get_album", (album_id,))
     album = cursor.fetchone()["album"]
-    del_command = "delete from albums where album_id = %s"
-    cursor.execute(del_command, (album_id,))
+
+    cursor.callproc("delete_album", (album_id,))
 
     if cursor.rowcount > 0:
         os.remove("/var/www/bm/common/%s" % album["photo"])
@@ -375,11 +375,7 @@ async def send_dispatch_update(request: Request, dispatch_id: str) -> DetailResp
 )
 @tsql
 async def get_purchase_orders() -> AdminPurchaseOrders:
-    query = "select purchase_orders.purchase_order,modified::varchar,status,count(distinct(album_id)) \
-        as albums from purchase_orders join purchase_order_lines on purchase_orders.purchase_order \
-        = purchase_order_lines.purchase_order group by purchase_orders.purchase_order,status,modified order by modified desc;"
-
-    cursor.execute(query)
+    cursor.callproc("get_purchase_orders")
     purchase_orders = cursor.fetchall()
     return {"purchase_orders": purchase_orders}
 
@@ -389,21 +385,7 @@ async def get_purchase_orders() -> AdminPurchaseOrders:
 )
 @tsql
 async def get_purchase_order(purchase_order_id: int) -> AdminPurchaseOrderResponse:
-    query = "select purchase_orders.purchase_order, purchase_orders.status,purchase_orders.modified::varchar, \
-		purchase_orders.estimated_receipt::varchar,purchase_orders.shipping_cost::float, \
-        sum(purchase_order_lines.line_total)::float as line_total,\
-        (sum(purchase_order_lines.line_total) + purchase_orders.shipping_cost)::float as invoice_total,\
-        json_agg(json_build_object('line',purchase_order_lines.line,'artist_id',artists.artist_id, \
-        'name',artists.name,'album_id',purchase_order_lines.album_id,'title',albums.title, \
-        'quantity',purchase_order_lines.quantity,'confirmed',purchase_order_lines.confirmed_quantity, \
-        'line_total',purchase_order_lines.line_total) order by purchase_order_lines.line) as lines \
-        from purchase_orders join purchase_order_lines on \
-        purchase_orders.purchase_order = purchase_order_lines.purchase_order \
-        join albums on albums.album_id = purchase_order_lines.album_id \
-        join artists on artists.artist_id = albums.artist_id where purchase_orders.purchase_order = %s \
-        group by purchase_orders.purchase_order;"
-
-    cursor.execute(query, (purchase_order_id,))
+    cursor.callproc("get_purchase_order", (purchase_order_id,))
     purchase_order = cursor.fetchone()
     return {"purchase_order": purchase_order}
 
@@ -443,11 +425,14 @@ async def send_purchase_order(
                 del row["artist"]
                 del row["album"]
                 del row["artist_id"]
-                row["purchase_order"] = inserted["purchase_order"]
+                row["confirmed_quantity"] = None
 
             po_lines_matrix = dict_list_to_matrix(po_rows_filtered)
 
-            cursor.callproc("create_purchase_order_lines", (*po_lines_matrix,))
+            cursor.callproc(
+                "create_purchase_order_lines",
+                (*po_lines_matrix, inserted["purchase_order"]),
+            )
 
         case "PATCH":
             keys = ["line", "album_id", "quantity", "line_total"]
@@ -456,10 +441,7 @@ async def send_purchase_order(
                 for line in po_rows
             ]
 
-            check_query = (
-                "select status from purchase_orders where purchase_order = %s;"
-            )
-            cursor.execute(check_query, (purchase_order,))
+            cursor.callproc("get_purchase_order", (purchase_order,))
             existing_po = cursor.fetchone()
 
             if existing_po["status"] == "confirmed":
@@ -474,9 +456,15 @@ async def send_purchase_order(
                     }
                 )
 
-            existing_lines_query = "select line,album_id,quantity,line_total::float,confirmed_quantity from purchase_order_lines where purchase_order = %s order by line asc;"
-            cursor.execute(existing_lines_query, (purchase_order,))
-            existing_lines = cursor.fetchall()
+            existing_lines = []
+
+            for line in existing_po["lines"]:
+                existing_line = {
+                    key: line[key]
+                    for key in ["line", "album_id", "quantity", "line_total"]
+                }
+                existing_line["confirmed_quantity"] = line["confirmed"]
+                existing_lines.append(existing_line)
 
             for n, new_line in enumerate(db_rows):
                 confirmed_quantity = search(
@@ -515,46 +503,26 @@ async def send_purchase_order(
             }
 
             if action["update"]:
-                update_command = """update purchase_order_lines
-                    set line = new_lines.line,
-                        album_id = new_lines.album_id,
-                        quantity = new_lines.quantity,
-                        confirmed_quantity = new_lines.confirmed_quantity,
-                        line_total = new_lines.line_total
-                        from (select
-                            unnest(%s) as line,
-                            unnest(%s) as album_id,
-                            unnest(%s) as quantity,
-                            unnest(%s) as line_total,
-                            unnest(%s::smallint[]) as confirmed_quantity)
-                        as new_lines
-                    where purchase_order_lines.purchase_order=%s and
-                    purchase_order_lines.line = new_lines.line;"""
-
                 update_lines = dict_list_to_matrix(to_update_lines)
-                cursor.execute(update_command, (*update_lines, purchase_order))
+                cursor.callproc(
+                    "update_purchase_order_lines", (*update_lines, purchase_order)
+                )
 
             if action["add"]:
                 insert_lines = dict_list_to_matrix(to_add_lines)
-                insert_command = """insert into purchase_order_lines
-                    (line,album_id,quantity,line_total,confirmed_quantity,purchase_order)
-                    select unnest(%s),unnest(%s),unnest(%s),unnest(%s),unnest(%s::smallint[]),%s;
-                    """
-                cursor.execute(insert_command, (*insert_lines, purchase_order))
+                cursor.callproc(
+                    "create_purchase_order_lines", (*insert_lines, purchase_order)
+                )
 
             elif action["delete"]:
-                delete_command = "delete from purchase_order_lines where line in (select unnest(ARRAY[%s])) and purchase_order = %s;"
-                cursor.execute(delete_command, (to_delete_lines, purchase_order))
+                cursor.callproc(
+                    "delete_purchase_order_lines", (to_delete_lines, purchase_order)
+                )
 
             if any(action.values()):
                 new_modified = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-                update_po_command = (
-                    "update purchase_orders set modified = %s, status = %s, \
-                    shipping_cost = %s,estimated_receipt = %s where purchase_order = %s \
-                    returning purchase_order,modified,status;"
-                )
-                cursor.execute(
-                    update_po_command,
+                cursor.callproc(
+                    "update_purchase_order",
                     (
                         new_modified,
                         "pending-supplier",
@@ -566,6 +534,7 @@ async def send_purchase_order(
                 inserted = cursor.fetchone()
             else:
                 return JSONResponse({"detail": "no changes made"})
+
     payload = json.dumps(
         {
             "client_id": (
@@ -579,8 +548,6 @@ async def send_purchase_order(
             "dispatch_cost": float(form["dispatch_cost"]),
         }
     )
-
-    print(payload)
 
     lambda_response = requests.put(
         dotenv_values(".env")["LAMBDA_SERVER"] + "/client/purchase-orders",

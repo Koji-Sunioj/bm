@@ -1,3 +1,5 @@
+--dispatch items
+
 create function get_dispatches(out purchase_order int,out dispatch_id varchar,out status varchar,
 	out address varchar, out estimated_receipt varchar,out shipping_cost numeric)
 returns setof record as 
@@ -22,6 +24,13 @@ $$
 $$
 language sql;
 
+create function get_dispatch_status(in dispatch_id uuid, out status varchar)
+returns varchar as
+$$
+	select status from dispatches where dispatch_id = $1
+$$
+language sql;
+
 create function update_stock(in dispatch_id uuid) 
 returns void as
 $$
@@ -37,6 +46,15 @@ $$
 	where po.album_id = albums.album_id;
 $$
 language sql;
+
+create function merchant_update_dispatch_status(in status varchar,in dispatch_id uuid)
+returns void as
+$$
+	update dispatches set status = $1 where dispatch_id = $2;
+$$
+language sql;
+
+--purchase orders
 
 create function get_pending_orders_count(out count int) 
 returns int as
@@ -54,17 +72,126 @@ $$
 language sql;
 
 create function create_purchase_order_lines(in line int[],in album_id int[],
-	in quantity int[],in line_total numeric[],in purchase_order int[])
+	in quantity int[],in line_total numeric[],in confirmed_quantity int[],in purchase_order int)
 returns void as
 $$
-	insert into purchase_order_lines (line,album_id,quantity,line_total,purchase_order)
-	select  unnest($1), unnest($2),unnest($3),unnest($4),unnest($5);
-$$ language sql;
-
-create function get_dispatch_status(in dispatch_id uuid, out status varchar)
-returns varchar as
+	insert into purchase_order_lines (line,album_id,quantity,line_total,confirmed_quantity,purchase_order)
+	select  unnest($1), unnest($2),unnest($3),unnest($4),unnest($5),$6;
 $$
-	select status from dispatches where dispatch_id = $1
+language sql;
+
+
+create function get_purchase_orders(out purchase_order int,out modified varchar,out status varchar,out count int) 
+returns setof record as
+$$
+	select purchase_orders.purchase_order,modified::varchar,status,count(distinct(album_id)) 
+	as albums from purchase_orders 
+	join purchase_order_lines on purchase_orders.purchase_order = purchase_order_lines.purchase_order 
+	group by purchase_orders.purchase_order,status,modified order by modified desc;
+$$
+language sql;
+
+create function get_purchase_order(in purchase_order int,out purchase_order int,out status varchar,
+	out modified varchar,out estimated_receipt varchar,out shipping_cost float, out line_total float,
+	out invoice_total float,out lines json) 
+returns setof record as
+$$
+	select purchase_orders.purchase_order, purchase_orders.status,purchase_orders.modified::varchar,
+	purchase_orders.estimated_receipt::varchar,purchase_orders.shipping_cost::float,
+	sum(purchase_order_lines.line_total)::float as line_total,
+	(sum(purchase_order_lines.line_total) + purchase_orders.shipping_cost)::float as invoice_total,
+	json_agg(json_build_object('line',purchase_order_lines.line,'artist_id',artists.artist_id,
+	'name',artists.name,'album_id',purchase_order_lines.album_id,'title',albums.title,
+	'quantity',purchase_order_lines.quantity,'confirmed',purchase_order_lines.confirmed_quantity,
+	'line_total',purchase_order_lines.line_total) order by purchase_order_lines.line) as lines
+	from purchase_orders join purchase_order_lines on
+	purchase_orders.purchase_order = purchase_order_lines.purchase_order
+	join albums on albums.album_id = purchase_order_lines.album_id
+	join artists on artists.artist_id = albums.artist_id where purchase_orders.purchase_order=$1
+	group by purchase_orders.purchase_order;
+$$
+language sql;
+
+create function update_purchase_order_lines(in line int[],in album_id int[],in quantity int[],
+	in line_total float[], in confirmed_quantity int[],in purchase_order int)
+returns void as    
+$$
+	update purchase_order_lines
+	set line = new_lines.line,
+	album_id = new_lines.album_id,
+	quantity = new_lines.quantity,
+	confirmed_quantity = new_lines.confirmed_quantity,
+	line_total = new_lines.line_total
+	from (select
+	unnest($1) as line,
+	unnest($2) as album_id,
+	unnest($3) as quantity,
+	unnest($4) as line_total,
+	unnest($5::smallint[]) as confirmed_quantity) as new_lines
+	where purchase_order_lines.purchase_order=$6 and purchase_order_lines.line = new_lines.line;
+$$
+language sql;
+
+create function merchant_update_purchase_order_lines(in line int[],in confirmed_quantities int[],in purchase_order int,
+	out line int, out quantity int,out confirmed_quantity int)
+as
+$$
+	update purchase_order_lines
+	set confirmed_quantity = merchant.quantity from
+	(select
+		unnest($1) as line,
+		unnest($2) as quantity
+	) as merchant
+	where merchant.line = purchase_order_lines.line
+	and purchase_order=$3
+	returning purchase_order_lines.line,purchase_order_lines.quantity,purchase_order_lines.confirmed_quantity
+$$
+language sql;
+
+create function delete_purchase_order_lines(in line int[],in purchase_order int)
+returns void as
+$$
+	delete from purchase_order_lines where line in (select unnest($1)) and purchase_order = $2;
+$$ 
+language sql;
+
+create function update_purchase_order(in modified varchar,in status varchar,
+	in shipping_cost float,in estimated_receipt varchar,in purchase_order int,
+	out purchase_order int, out modified timestamp, out status varchar)
+returns setof record as
+$$
+	update purchase_orders
+	set modified = $1::timestamp, status = $2,
+	shipping_cost = $3,estimated_receipt = $4::timestamp
+	where purchase_order = $5
+	returning purchase_order,modified,status;
+$$
+language sql;
+
+create function merchant_update_purchase_order(in modified varchar,in status varchar,in purchase_order int)
+returns void as
+$$
+	update purchase_orders
+	set modified = $1::timestamp, status = $2
+	where purchase_order = $3;
+$$
+language sql;
+
+create function merchant_update_purchase_order_delivery(in estimated_receipt varchar,in modified varchar,in dispatch_id uuid)
+returns void as
+$$
+	update purchase_orders
+	set estimated_receipt = $1::timestamp,modified = $2::timestamp
+	where purchase_order = (select purchase_order from dispatches where dispatch_id = $3);
+$$
+language sql;
+
+--albums
+
+create function delete_album(in album_id int)
+returns void as    
+$$
+	delete from albums where album_id = $1;
 $$
 language sql;
 
@@ -87,7 +214,7 @@ create function get_cart_count(in username varchar, in album_id int, out cart bi
 $$
     select coalesce(sum(quantity),0) as cart from cart 
     join users on users.user_id = cart.user_id 
-    where users.username = $1 and cart.album_id = $2;
+    where users.username = $0 and cart.album_id = $2;
 $$ language sql;
 
 create function get_orders_and_cart(in username varchar, out cart json, out orders json) as
@@ -162,7 +289,7 @@ begin
     case task
         when 'owner' then
             return query select json_build_object('user_id',users.user_id) as bm_user 
-            from users where users.username=$1;
+            from users where users.username=$0;
         when 'password' then
             return query select json_build_object('username',users.username,'password',users.password,
             'created',users.created,'role',users.role) as bm_user
@@ -187,7 +314,7 @@ $$ language plpgsql;
 
 create function get_pages(in scope varchar, in query varchar default null,out pages int) returns setof int as 
 $$
-begin
+
     case scope
         when 'albums' then
             if $2 is null then

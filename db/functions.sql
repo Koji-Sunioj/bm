@@ -1,5 +1,3 @@
---dispatch items
-
 create function get_dispatches(out purchase_order int,out dispatch_id varchar,out status varchar,
 	out address varchar, out estimated_receipt varchar,out shipping_cost numeric)
 returns setof record as 
@@ -53,8 +51,6 @@ $$
 	update dispatches set status = $1 where dispatch_id = $2;
 $$
 language sql;
-
---purchase orders
 
 create function get_pending_orders_count(out count int) 
 returns int as
@@ -185,8 +181,6 @@ $$
 	where purchase_order = (select purchase_order from dispatches where dispatch_id = $3);
 $$
 language sql;
-
---albums
 
 create function delete_album(in album_id int)
 returns void as    

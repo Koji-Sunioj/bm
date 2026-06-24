@@ -308,6 +308,7 @@ $$ language plpgsql;
 
 create function get_pages(in scope varchar, in query varchar default null,out pages int) returns setof int as 
 $$
+begin
     case scope
         when 'albums' then
             if $2 is null then
@@ -330,7 +331,6 @@ $$
     end case;
 end
 $$ language plpgsql;
-
 
 create function create_artist(in name varchar, in bio varchar,out name varchar,out artist_id int) as
 $$

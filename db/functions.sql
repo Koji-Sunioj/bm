@@ -208,7 +208,7 @@ create function get_cart_count(in username varchar, in album_id int, out cart bi
 $$
     select coalesce(sum(quantity),0) as cart from cart 
     join users on users.user_id = cart.user_id 
-    where users.username = $0 and cart.album_id = $2;
+    where users.username = $1 and cart.album_id = $2;
 $$ language sql;
 
 create function get_orders_and_cart(in username varchar, out cart json, out orders json) as

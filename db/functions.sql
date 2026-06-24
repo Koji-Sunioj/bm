@@ -308,7 +308,6 @@ $$ language plpgsql;
 
 create function get_pages(in scope varchar, in query varchar default null,out pages int) returns setof int as 
 $$
-
     case scope
         when 'albums' then
             if $2 is null then

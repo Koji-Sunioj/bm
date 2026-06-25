@@ -405,12 +405,12 @@ async def send_purchase_order(
 
     match request.method:
         case "POST":
-            cursor.callproc("get_pending_orders_count")
-            others_orders = cursor.fetchone()["count"]
+            cursor.callproc("get_pending_orders_dispatches_count")
+            others_orders = cursor.fetchone()
 
-            if others_orders > 0:
+            if others_orders["pending_pos"] > 0 or others_orders["pending_dispatches"]:
                 return JSONResponse(
-                    {"detail": "no more than one pending purchase order can exist"}
+                    {"detail": "there are pending purchase orders or dispatches which need to be complete first."}
                 )
 
             cursor.callproc(

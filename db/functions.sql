@@ -52,10 +52,12 @@ $$
 $$
 language sql;
 
-create function get_pending_orders_count(out count int) 
-returns int as
+create function get_pending_orders_dispatches_count(out pending_pos int, out pending_dispatches int) 
+returns setof record as
 $$
-	select count(purchase_order) from purchase_orders where status in ('pending-supplier','pending-buyer');
+	select pending_pos,pending_dispatches from
+	(select count(purchase_order) as pending_pos from purchase_orders where status != 'confirmed') purchase_orders,
+	(select count(dispatch_id) as pending_dispatches from dispatches where status != 'received') dispatches;
 $$
 language sql;
 

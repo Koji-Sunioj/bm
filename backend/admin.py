@@ -566,7 +566,7 @@ async def send_purchase_order(
         case _:
             raise Exception(detail)
 
-
+@tsql
 @admin.get("/dispatch-cost", response_model=AdminDispatchCost)
 async def get_dispatch_costs(items: str = None) -> AdminDispatchCost:
     params = {

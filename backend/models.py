@@ -162,7 +162,6 @@ class AdminPurchaseOrder(BaseModel):
     lines: List[AdminPurchaseOrderLine] | None = None
     estimated_receipt: str | None = None
     shipping_cost: float | None = None
-    line_total: float | None = None
     invoice_total: float | None = None
 
 
@@ -197,7 +196,7 @@ class MerchantPurchaseOrder(BaseModel):
 class MerchantDispatchNote(BaseModel):
     dispatch_id: str
     purchase_order: int
-    status: str
+    status: Literal["received", "pending-supplier", "shipped", "rescheduled"]
     address: str
     client_id: str
     estimated_delivery: str

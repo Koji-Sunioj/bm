@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Literal
 from pydantic import BaseModel
 
 
@@ -190,7 +190,7 @@ class MerchantPurchaseOrder(BaseModel):
     purchase_order_id: int
     client_id: str
     lines: List[MerchantPurchaseOrderLine]
-    status: str
+    status: Literal["pending-supplier", "pending-buyer", "confirmed"]
     modified: str
 
 

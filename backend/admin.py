@@ -408,11 +408,6 @@ async def send_purchase_order(
             cursor.callproc("get_pending_orders_dispatches_count")
             others_orders = cursor.fetchone()
 
-            # if others_orders["pending_pos"] > 0 or others_orders["pending_dispatches"]:
-            #    return JSONResponse(
-            #        {"detail": "there are pending purchase orders or dispatches which need to be complete first."}
-            #    )
-
             cursor.callproc(
                 "create_purchase_order",
                 (form["dispatch_cost"], form["estimated_delivery"]),

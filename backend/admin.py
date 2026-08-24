@@ -12,6 +12,7 @@ from utils import (
 
 import os
 import json
+import pprint
 import requests
 from typing import Annotated
 from dotenv import dotenv_values
@@ -589,3 +590,34 @@ async def get_dispatch_costs(items: str = None) -> AdminDispatchCost:
         raise Exception("there was an error in the request")
 
     return lambda_response.json()
+
+
+@admin.get("/catalog/album/{deezer_id}")
+async def fill_from_catalog(deezer_id: int):
+    print("hey")
+    deezer_album = "https://api.deezer.com/album/%s" % deezer_id
+    print(deezer_album)
+    response = requests.get(deezer_album)
+    return response.json()
+    
+
+@admin.get("/catalog/{artist}/{title}")
+async def check_catalog(artist:str,title:str):
+    deezer_albums = "https://api.deezer.com/search/album?q=%s" % title
+    response = requests.get(deezer_albums)
+    catalog = response.json()
+
+    albums = []
+
+    for album in catalog["data"]:
+        if album["artist"]["name"] == artist:
+            deezer_album = "https://api.deezer.com/album/%s" % album["id"]
+            response = requests.get(deezer_album)
+            release_year = int(response.json()["release_date"][0:4])
+
+            albums.append({"artist": album["artist"]["name"], 
+                "cover":album["cover_medium"],"deezer_id":album["id"],
+                "n_tracks":album["nb_tracks"],"title":album["title"],"release_year":release_year})
+            
+    return albums
+

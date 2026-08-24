@@ -446,3 +446,11 @@ select::-ms-expand {
   all: unset;
   color:red;
 }
+
+#catalog {
+  flex-direction: column;
+}
+
+#catalog > button {
+  display: flex
+}

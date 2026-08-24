@@ -1147,6 +1147,7 @@ const renderAlbumForm = async () => {
       break;
     case "new":
       h1.innerText = "Create a album";
+      document.getElementById("catalog-search").hidden = false;
       break;
   }
 };

@@ -12,7 +12,6 @@ from utils import (
 
 import os
 import json
-import pprint
 import requests
 from typing import Annotated
 from dotenv import dotenv_values

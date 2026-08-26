@@ -4,11 +4,12 @@ import hmac
 import base64
 import hashlib
 import requests
+
 from jose import jwt
+from models import Album, JWT
 from dotenv import dotenv_values
 from cryptography.fernet import Fernet
-from fastapi import Request, HTTPException
-from models import Album, JWT
+from fastapi import Request, HTTPException, WebSocket
 from starlette.datastructures import FormData
 
 
@@ -175,3 +176,7 @@ async def verify_token(request: Request) -> None:
         request.state.sub = jwt_payload["sub"]
     except:
         raise HTTPException(status_code=401, detail="invalid credentials")
+
+async def verify_admin_token_ws(websocket: WebSocket):
+    jwt_payload = jwt.decode(websocket.cookies["token"], key=fe_secret)
+    decode_role(jwt_payload["role"])

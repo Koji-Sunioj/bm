@@ -335,6 +335,12 @@ const renderAdminView = async () => {
       nav.after(info);
       break;
   }
+
+  const websocket = new WebSocket("ws://localhost:8000/api/socket/ws");
+
+  websocket.onopen = () => {
+    console.log('Connected to WebSocket server')
+  };
 };
 
 const triggerReceipt = async (event) => {

@@ -163,7 +163,7 @@ class AdminPurchaseOrder(BaseModel):
     estimated_receipt: str | None = None
     shipping_cost: float | None = None
     invoice_total: float | None = None
-
+    count: int | None = None
 
 class AdminPurchaseOrderResponse(BaseModel):
     purchase_order: AdminPurchaseOrder

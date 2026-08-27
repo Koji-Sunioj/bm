@@ -593,9 +593,7 @@ async def get_dispatch_costs(items: str = None) -> AdminDispatchCost:
 
 @admin.get("/catalog/album/{deezer_id}")
 async def fill_from_catalog(deezer_id: int):
-    print("hey")
     deezer_album = "https://api.deezer.com/album/%s" % deezer_id
-    print(deezer_album)
     response = requests.get(deezer_album)
     return response.json()
     

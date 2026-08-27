@@ -215,7 +215,7 @@ const renderAdminView = async () => {
           response.json()
         );
 
-        const headers = ["purchase_order", "modified", "status", "albums"];
+        const headers = ["purchase_order", "modified", "status", "count"];
         const [table, tableBody, header, lineBr] = elements([
           "table",
           "tbody",
@@ -230,6 +230,8 @@ const renderAdminView = async () => {
         viewDiv.appendChild(table);
 
         purchase_orders.forEach((purchaseOrder) => {
+
+          console.log(purchaseOrder)
           const newRow = element("tr");
           headers.forEach((header) => {
             const newCell = element("td");
@@ -350,6 +352,22 @@ const monitorSupplierWebSocket = async () => {
 
   websocket.onopen = () => {
     console.log("Connected to WebSocket server");
+    let timer = setTimeout(function tick() {
+      websocket.send(
+        JSON.stringify({
+          action: "ping",
+        })
+      );
+      timer = setTimeout(tick, 60000); // (*)
+    }, 60000);
+  };
+
+  websocket.onclose = () => {
+    console.log("server disconnected");
+  };
+
+  websocket.onmessage = (event) => {
+    console.log(event.data);
   };
 };
 

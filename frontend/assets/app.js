@@ -336,10 +336,20 @@ const renderAdminView = async () => {
       break;
   }
 
-  const websocket = new WebSocket("ws://localhost:8000/api/socket/ws");
+  monitorSupplierWebSocket();
+};
+
+const monitorSupplierWebSocket = async () => {
+  const { user, client_id, url, hmac } = await fetch(
+    "/api/admin/merchant-websocket-params"
+  ).then((response) => response.json());
+
+  const websocket = new WebSocket(
+    url + `?user=${user}&client_id=${client_id}&hmac=${hmac}`
+  );
 
   websocket.onopen = () => {
-    console.log('Connected to WebSocket server')
+    console.log("Connected to WebSocket server");
   };
 };
 
@@ -932,46 +942,49 @@ const renderArtistForm = async () => {
 };
 
 const autoFillFromCatalog = async (event) => {
-    const [songOne, durationOne] = Array.from(
-        document.querySelectorAll("[name=song_1],[name=duration_1]")
-    );    
-    songOne.value = "";
-    durationOne.value = "";
+  const [songOne, durationOne] = Array.from(
+    document.querySelectorAll("[name=song_1],[name=duration_1]")
+  );
+  songOne.value = "";
+  durationOne.value = "";
 
-    const tbody = document.getElementById("songs").querySelector("tbody");
-    
-    Array.from(tbody.children).forEach((element,n)=>{
-        if (n > 1) {
-            element.remove();
-        }
-    })
-    
-    const album = await fetch(`/api/admin/catalog/album/${event.target.deezer_id}`).then(
-        (response) => response.json()
-      );
-    document.querySelector("[name=release_year]").value = album.release_date.substring(0,4);
+  const tbody = document.getElementById("songs").querySelector("tbody");
 
-    const firstDeezerSong = album.tracks.data[0]
-    songOne.value = firstDeezerSong.title;
-    durationOne.value = firstDeezerSong.hasOwnProperty("duration") && firstDeezerSong.duration !== null
-        ? toMMSS(firstDeezerSong.duration)
-        : "";
+  Array.from(tbody.children).forEach((element, n) => {
+    if (n > 1) {
+      element.remove();
+    }
+  });
 
-    album.tracks.data.forEach((track,n)=>{
-        n !== 0 &&addSong({song: track.title,duration: track.duration});
-    })
+  const album = await fetch(
+    `/api/admin/catalog/album/${event.target.deezer_id}`
+  ).then((response) => response.json());
+  document.querySelector("[name=release_year]").value =
+    album.release_date.substring(0, 4);
 
-    const imgData = await fetch(album.cover_big).then((response) =>
-        response.blob()
-      );
+  const firstDeezerSong = album.tracks.data[0];
+  songOne.value = firstDeezerSong.title;
+  durationOne.value =
+    firstDeezerSong.hasOwnProperty("duration") &&
+    firstDeezerSong.duration !== null
+      ? toMMSS(firstDeezerSong.duration)
+      : "";
 
-    const img = document.getElementById("photo-preview");
-    const imgInput = document.getElementById("photo");
-    const existingFile = new File([imgData], "something");
-    const dataXfer = new DataTransfer();
-    dataXfer.items.add(existingFile);
-    imgInput.files = dataXfer.files;
-    img.src = URL.createObjectURL(existingFile);
+  album.tracks.data.forEach((track, n) => {
+    n !== 0 && addSong({ song: track.title, duration: track.duration });
+  });
+
+  const imgData = await fetch(album.cover_big).then((response) =>
+    response.blob()
+  );
+
+  const img = document.getElementById("photo-preview");
+  const imgInput = document.getElementById("photo");
+  const existingFile = new File([imgData], "something");
+  const dataXfer = new DataTransfer();
+  dataXfer.items.add(existingFile);
+  imgInput.files = dataXfer.files;
+  img.src = URL.createObjectURL(existingFile);
 };
 
 const checkCatalog = async () => {
@@ -994,24 +1007,23 @@ const checkCatalog = async () => {
 
     catalogElement.hidden = false;
     catalogElement.innerHTML = "";
-    
+
     const paragraph = element("p");
     paragraph.innerText = `${albums.length} albums have been found from the catalog:`;
     catalogElement.appendChild(paragraph);
 
-    albums.forEach((album)=>{
-        const cover = element("img");
-        cover.src = album.cover;
-        catalogElement.appendChild(cover);
+    albums.forEach((album) => {
+      const cover = element("img");
+      cover.src = album.cover;
+      catalogElement.appendChild(cover);
 
-        const fillButton = element("button");
-        fillButton.innerText = `${album.artist} - ${album.title} (${album.release_year}), ${album.n_tracks} tracks.` 
-        fillButton.addEventListener("click",autoFillFromCatalog);
-        fillButton.deezer_id = album.deezer_id;
+      const fillButton = element("button");
+      fillButton.innerText = `${album.artist} - ${album.title} (${album.release_year}), ${album.n_tracks} tracks.`;
+      fillButton.addEventListener("click", autoFillFromCatalog);
+      fillButton.deezer_id = album.deezer_id;
 
-        catalogElement.appendChild(fillButton);
+      catalogElement.appendChild(fillButton);
     });
-
   } else {
     alert("no album found with that title and artist name.");
   }

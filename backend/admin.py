@@ -620,3 +620,15 @@ async def check_catalog(artist:str,title:str):
             
     return albums
 
+@admin.get("/merchant-websocket-params")
+async def websocket_params():
+    params = {
+        "client_id": (
+            "bm-prod" if os.path.exists("/var/lib/cloud/instance") else "bm-dev"
+        ),
+        "user": "client",
+    }
+    params["hmac"] = get_hmac(params)
+    params["url"] = dotenv_values(".env")["SUPPLIER_WEBSOCKET"]
+
+    return params

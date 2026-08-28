@@ -230,9 +230,8 @@ const renderAdminView = async () => {
         viewDiv.appendChild(table);
 
         purchase_orders.forEach((purchaseOrder) => {
-
-          console.log(purchaseOrder)
           const newRow = element("tr");
+
           headers.forEach((header) => {
             const newCell = element("td");
 
@@ -258,6 +257,8 @@ const renderAdminView = async () => {
           });
           tableBody.appendChild(newRow);
         });
+      
+      monitorSupplierWebSocket(view);
       }
       break;
     case "dispatches":
@@ -335,13 +336,13 @@ const renderAdminView = async () => {
       info.innerHTML =
         "*click on the dispatch ID in the table below to confirm receipt of dispatch. only possible when status is 'status' is shipped,";
       nav.after(info);
+      monitorSupplierWebSocket(view);
       break;
   }
-
-  monitorSupplierWebSocket();
 };
 
-const monitorSupplierWebSocket = async () => {
+const monitorSupplierWebSocket = async (view,identifier = null) => {
+
   const { user, client_id, url, hmac } = await fetch(
     "/api/admin/merchant-websocket-params"
   ).then((response) => response.json());
@@ -358,7 +359,7 @@ const monitorSupplierWebSocket = async () => {
           action: "ping",
         })
       );
-      timer = setTimeout(tick, 60000); // (*)
+      timer = setTimeout(tick, 60000); 
     }, 60000);
   };
 
@@ -367,7 +368,12 @@ const monitorSupplierWebSocket = async () => {
   };
 
   websocket.onmessage = (event) => {
-    console.log(event.data);
+    const updatedModule = JSON.parse(event.data);
+    if (updatedModule.module === view && identifier === null) {
+      window.location.reload();
+    } else if (updatedModule.module === view && updatedModule.identifier === identifier) {
+      window.location.reload();
+    }
   };
 };
 
@@ -599,7 +605,6 @@ const renderPurchaseForm = async () => {
           status,
           lines,
           invoice_total,
-          line_total,
           estimated_receipt,
           shipping_cost,
         },
@@ -609,6 +614,8 @@ const renderPurchaseForm = async () => {
 
       addable = status === "confirmed" ? false : true;
       document.getElementById("po-details").style.display = "block";
+
+      const line_total = lines.reduce((prev,current)=>prev+current.line_total,0); 
 
       for (const [field, value] of Object.entries({
         purchase_order: purchase_order,
@@ -687,6 +694,8 @@ const renderPurchaseForm = async () => {
     document.getElementById("line-form").disabled = true;
     document.getElementById("po-form").disabled = true;
   }
+
+  monitorSupplierWebSocket("purchase-orders");
 };
 
 const changeAlbums = async (event) => {
@@ -1625,8 +1634,6 @@ const renderAlbum = async () => {
             break;
           case "song":
             text = `${dbSong[item]}`;
-            console.log(dbSong);
-            console.log(dbSong["preview"]);
             if (dbSong["preview"] !== undefined) {
               renderMusicPlayer(dbSong, infoDiv);
               const songButton = element("button");

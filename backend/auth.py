@@ -39,11 +39,11 @@ async def check_token(request: Request, response: Response) -> Response:
 @tsql
 async def sign_in(response: Response, user: UserAuth) -> DetailResponse:
     cursor.callproc("get_user", (user.username, "password"))
+    
+    db_user = cursor.fetchone()["bm_user"]
+    authenticated = pwd_context.verify(user.password, db_user["password"])
 
-    try:
-        db_user = cursor.fetchone()["bm_user"]
-        pwd_context.verify(user.password, db_user["password"])
-    except:
+    if not authenticated:
         raise Exception("cannot sign in")
 
     now = datetime.now(timezone.utc)
